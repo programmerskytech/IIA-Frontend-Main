@@ -1,0 +1,587 @@
+import React, { useRef, useState, useEffect } from "react";
+import { Button, Card, Form, message } from "antd";
+import { useReactToPrint } from "react-to-print";
+import axios from "axios";
+import { useSelector } from "react-redux";
+import Heading from "../../../components/DKG_Heading";
+import CustomForm from "../../../components/DKG_CustomForm";
+import { renderFormFields } from "../../../utils/CommonFunctions";
+import ButtonContainer from "../../../components/ButtonContainer";
+import CustomModal from "../../../components/CustomModal";
+import { PoDetails } from "./InputFields";
+import { useLocation } from "react-router-dom";
+import PoFormat from "../../../utils/Po-Format";
+
+const PO = () => {
+  const printRef = useRef();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [submitBtnLoading, setSubmitBtnLoading] = useState(false);
+  const [generatedPOId, setGeneratedPOId] = useState("");
+  const [poIdDropdown, setPoIdDropdown] = useState([]);
+  const [searchDone, setSearchDone] = useState(false);
+  const [completedVendors, setCompletedVendors] = useState([]);
+  const [completedVendorIds, setCompletedVendorIds] = useState([]);
+  const [completedVendorNames, setCompletedVendorNames] = useState([]);
+
+
+  // Redux selectors
+  const auth = useSelector((state) => state.auth);
+  const actionPerformer = auth.userId;
+  
+
+  // Data states
+  const [vendors, setVendors] = useState([]);
+  const [tenders, setTenders] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [formData, setFormData] = useState({
+    materialDtlList: [],
+    consignesAddress: "Bangalore",
+    billingAddress: "Koramangala, Bangalore - 560034",
+  });
+  const location = useLocation();
+      const { poId } = location.state || {};
+  
+      console.log("PO ID:", poId); 
+
+  // Fetch initial data
+  const populateDropdowns = async () => {
+    try {
+      const [vendorResponse, approvedTendersResponse] = await Promise.all([
+        axios.get("/api/vendor-master"),
+        axios.get("/getApprovedTenderIdForPOAndSO"),
+      ]);
+
+      // Format options
+      const formattedVendors = (vendorResponse.data?.responseData || []).map(
+        (vendor) => ({
+          label: vendor.vendorName,
+          value: vendor.vendorName,
+          id: vendor.vendorId,
+          address: vendor.address,
+          accountNumber: vendor.accountNo,
+          ifscCode: vendor.ifscCode,
+          accountName: vendor.vendorName,
+        })
+      );
+      setVendors(formattedVendors);
+
+      // Get approved tender IDs
+      const approvedTenderIds =
+        approvedTendersResponse.data?.responseData || [];
+
+      const tendersForDropdown = approvedTenderIds.map((tenderId) => ({
+        label: tenderId,
+        value: tenderId,
+      }));
+      setTenders(tendersForDropdown);
+
+    } catch (error) {
+      message.error("Failed to load dropdown data");
+    }
+  };
+   const handleSearchPoIds = async () => {
+  const { searchType, searchValue } = formData;
+
+  if (!searchValue || !searchType) {
+    message.warning("Please select search type and enter value.");
+    return;
+  }
+
+  try {
+    const { data } = await axios.get(`/api/purchase-orders/search`, {
+      params: {
+        type: searchType,
+        value: searchValue
+      }
+    });
+
+    const poList = data?.responseData || [];
+
+    const dropdownOptions = poList.map((item) => ({
+      label: item.poId,
+      value: item.poId
+    }));
+
+    setPoIdDropdown(dropdownOptions);
+
+    if (dropdownOptions.length === 0) {
+      message.warning("No po IDs found.");
+    } else {
+      message.success(`${dropdownOptions.length} Please Select PO Id in Po Id Drop Down.`);
+    }
+  } catch (error) {
+    message.error("Error fetching indent IDs.");
+  }
+};
+
+
+
+  const handleTenderSelect = async (tenderId) => {
+    try {
+      ;
+
+      // 1. Fetch the full tender DTO by tenderId using axios and relative path
+      const tenderRes = await axios.get(`/api/tender-requests/${tenderId}`);
+      const tenderDto = tenderRes.data.responseData;
+      ;
+
+      // 2. Extract all material details from indentResponseDTO
+      const allMaterials = (tenderDto.indentResponseDTO || []).flatMap(
+        (indent) =>
+          (indent.materialDetails || []).map((material) => ({
+            materialCode: material.materialCode,
+            materialDescription: material.materialDescription,
+            quantity: material.quantity,
+            rate: material.unitPrice,
+            uom: material.uom,
+            currency: material.currency || "INR",
+            gst: material.gst || "",
+            duties: material.duties || "",
+            // Add other fields as needed
+          }))
+      );
+
+      // 3. Update state and form
+      setMaterials(allMaterials);
+      let vendorIdOptions= [];
+      let vendorNameOptions=[];
+    try {
+      const completedResp = await axios.get(`/api/vendor-quotation/completed-vendorNames/${tenderId}`);
+      const completedVendorsData = completedResp.data?.responseData || [];
+    vendorIdOptions = completedVendorsData.map((vendor) => ({
+  label: vendor.vendorId,
+  value: vendor.vendorId,
+}));
+vendorNameOptions = completedVendorsData.map((vendor) => ({
+  label: vendor.vendorName,
+  value: vendor.vendorName,
+}));
+
+
+  setCompletedVendorIds(vendorIdOptions);
+  setCompletedVendorNames(vendorNameOptions);
+      
+    } catch (e) {
+      console.warn("Failed to fetch completed vendors:", e);
+     // setCompletedVendors([]); // fallback
+      setCompletedVendorIds([]);
+      setCompletedVendorNames([]);
+    }
+
+    // Auto-fill vendor details from vendorId
+    const selectedVendor = vendors.find((v) => v.id === tenderDto.vendorId);
+
+      setFormData((prev) => ({
+        ...prev,
+        tenderId,
+        materialDtlList: allMaterials,
+        incoTerms: tenderDto.incoTerms,
+        paymentTerms: tenderDto.paymentTerms,
+        vendorId: tenderDto.vendorId,
+        vendorName: selectedVendor?.value || "",
+        vendorAddress: selectedVendor?.address || "",
+        vendorAccountNumber: selectedVendor?.accountNumber || "",
+        vendorsIfscCode: selectedVendor?.ifscCode || "",
+        vendorAccountName: selectedVendor?.accountName || "",
+      }));
+    } catch (error) {
+      console.error("Tender selection error:", error);
+      message.error("Failed to load tender details");
+    }
+  };
+
+  // Hydrate form configuration
+  const hydratedPoDetails = PoDetails.map((section) => {
+    if (section.fieldList) {
+      return {
+        ...section,
+        fieldList: section.fieldList.map((field) => {
+          //if (field.name === "vendorName")
+           // return { ...field, options: vendors };
+          if (field.name === "tenderId")
+            return {
+              ...field,
+              options: tenders,
+              props: {
+                onChange: (value) => {
+                  handleTenderSelect(value);
+                },
+                showSearch: true,
+              },
+            };
+           /* if (field.name === "vendorId")
+                return {
+                  ...field,
+                  options: vendors.map((v) => ({
+                    label: v.id,
+                    value: v.id,
+                  })),
+                };*/
+               if (field.name === "vendorId") {
+                return {
+                  ...field,
+                  options: completedVendorIds.length
+                  ? completedVendorIds
+                  : vendors.map((v) => ({ label: v.id, value: v.id })), 
+                };
+              }
+
+              if (field.name === "vendorName") {
+                return {
+                  ...field,
+                  options: completedVendorNames.length
+                  ? completedVendorNames
+                  : vendors.map((v) => ({ label: v.name, value: v.name })), // fallback
+                };
+              }
+
+
+                /* if (field.name === "poId") {
+                    return {
+                        ...field,
+                        options: poIdDropdown,
+                    };
+                }*/
+               if (field.name === "poId") {
+                return {
+                ...field,
+                options: poIdDropdown,
+                props: {
+                  onChange: (value) => handleSearch(value),
+                },
+                };
+              }
+
+                if (field.name === "searchValue") {
+                    return {
+                        ...field,
+                        onSearch: handleSearchPoIds,
+                    };
+                }
+          return field;
+        }),
+      };
+    }
+    if (section.name === "materialDtlList") {
+      return {
+        ...section,
+        children: section.children.map((child) => ({
+          ...child,
+          options: child.name === "materialCode" ? materials : child.options,
+        })),
+      };
+    }
+    return section;
+  });
+
+  // Handle form changes
+  const handleChange = (name, value) => {
+    if (name === "vendorName") {
+      const selectedVendor = vendors.find((v) => v.value === value);
+      setFormData((prev) => ({
+        ...prev,
+        vendorName: value,
+        vendorId: selectedVendor?.id || "",
+        vendorAddress: selectedVendor?.address || "",
+        vendorAccountNumber: selectedVendor?.accountNumber || "",
+        vendorsIfscCode: selectedVendor?.ifscCode || "",
+        vendorAccountName: selectedVendor?.accountName || "",
+      }));
+      return;
+    }
+    if (name === "vendorId") {
+        const selectedVendor = vendors.find((v) => v.id === value);
+        setFormData((prev) => ({
+          ...prev,
+          vendorId: value,
+          vendorName: selectedVendor?.value || "",
+          vendorAddress: selectedVendor?.address || "",
+          vendorAccountNumber: selectedVendor?.accountNumber || "",
+        vendorsIfscCode: selectedVendor?.ifscCode || "",
+        vendorAccountName: selectedVendor?.accountName || "",
+        }));
+        return;
+      }
+    if (Array.isArray(name)) {
+      const [section, index, field] = name;
+      if (section === "materialDtlList") {
+        setFormData((prev) => {
+          const updated = [...(prev.materialDtlList || [])];
+          updated[index] = { ...updated[index], [field]: value };
+          const item = updated[index];
+          const rate = parseFloat(item.rate || 0);
+          const exchangeRate = parseFloat(item.exchangeRate || 0);
+
+      if (item.currency && item.currency !== "INR" && rate > 0 && exchangeRate > 0) {
+        updated[index].inrEquivalent = (rate * exchangeRate).toFixed(2);
+      } else {
+        updated[index].inrEquivalent = "";
+      }
+          return { ...prev, materialDtlList: updated };
+        });
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+   useEffect(() => {
+          if (poId) {
+          handleSearch(poId); 
+      }
+      }, [poId]);
+
+/*
+  // Form submission
+  const onFinish = async () => {
+    try {
+      if (!formData.tenderId) {
+        message.error("Please select a Tender ID before submitting.");
+        return;
+      }
+      setSubmitBtnLoading(true);
+      const payload = {
+        ...formData,
+        createdBy: actionPerformer,
+        purchaseOrderAttributes: (formData.materialDtlList || []).map((m) => ({
+          budgetCode: m.budgetCode || "",
+          currency: m.currency || "",
+          duties: Number(m.duties) || 0,
+          exchangeRate: Number(m.exchangeRate) || 0,
+          freightCharge: Number(m.freightCharge) || 0,
+          gst: Number(m.gst) || 0,
+          materialCode: m.materialCode || "",
+          materialDescription: m.materialDescription || "",
+          quantity: Number(m.quantity) || 0,
+          rate: Number(m.rate) || 0,
+        })),
+      };
+
+      const { data } = await axios.post("/api/purchase-orders", payload);
+      setGeneratedPOId(data.responseData.poId);
+      setModalOpen(true);
+    } catch (error) {
+      message.error("Failed to create purchase order");
+    } finally {
+      setSubmitBtnLoading(false);
+    }
+  };*/
+  const onFinish = async () => {
+    try {
+      if (!formData.tenderId) {
+        message.error("Please select a Tender ID before submitting.");
+        return;
+      }
+      setSubmitBtnLoading(true);
+
+      const payload = {
+        ...formData,
+        createdBy: actionPerformer,
+        purchaseOrderAttributes: (formData.materialDtlList || []).map((m) => ({
+        budgetCode: m.budgetCode || "",
+        currency: m.currency || "",
+        duties: Number(m.duties) || 0,
+        exchangeRate: Number(m.exchangeRate) || 0,
+        freightCharge: Number(m.freightCharge) || 0,
+        gst: Number(m.gst) || 0,
+        materialCode: m.materialCode || "",
+        materialDescription: m.materialDescription || "",
+        quantity: Number(m.quantity) || 0,
+        rate: Number(m.rate) || 0,
+      })),
+    };
+
+    let data;
+    if (formData.poId) {
+      // Update
+      const response = await axios.put(`/api/purchase-orders/${formData.poId}`, payload);
+      data = response.data;
+      message.success("Purchase Order updated successfully");
+    } else {
+      // Create
+      const response = await axios.post("/api/purchase-orders", payload);
+      data = response.data;
+      message.success("Purchase Order created successfully");
+    }
+
+    setGeneratedPOId(data.responseData.poId);
+    setModalOpen(true);
+    } catch (error) {
+      message.error("Failed to submit purchase order");
+    } finally {
+      setSubmitBtnLoading(false);
+    }
+  };
+
+
+  const handleSearch = async (value) => {
+    try {
+      const { data } = await axios.get(
+        `/api/purchase-orders/base64Files/${value ? value : formData.poId}`
+      );
+      const responseData = data?.responseData || {};
+
+      setFormData({
+        ...responseData,
+        materialDtlList: responseData?.purchaseOrderAttributes || [],
+       // comparativeStatementFileName: responseData?.comparativeStatementFileNameList || [],
+       comparativeStatementFileName: Array.isArray(responseData?.comparativeStatementFileNameList)
+        ? responseData.comparativeStatementFileNameList
+        : [],
+
+      });
+      console.log(formData);
+      setSearchDone(true);
+    } catch (error) {
+      ;
+      message.error(
+        error?.response?.data?.responseStatus?.message || "Error fetching data."
+      );
+    }
+  };
+  const hydratedPoDetailsWithConditionalFields = hydratedPoDetails.map((section) => {
+  if (section.name === "materialDtlList") {
+    return {
+      ...section,
+      children: section.children.map((child) => {
+        if (child.name === "exchangeRate") {
+          return {
+            ...child,
+            required: (formData?.materialDtlList || []).some(
+              (m) => m.currency && m.currency !== "INR"
+            ),
+            shouldShow: () =>
+              (formData?.materialDtlList || []).some(
+                (m) => m.currency && m.currency !== "INR"
+              ),
+          };
+        }
+
+        if (child.name === "inrEquivalent") {
+          return {
+            ...child,
+            shouldShow: () =>
+              (formData?.materialDtlList || []).some(
+                (m) => m.currency && m.currency !== "INR"
+              ),
+          };
+        }
+
+        return child;
+      }),
+    };
+  }
+   
+  if (section.fieldList) {
+    return {
+      ...section,
+      fieldList: section.fieldList.map((field) => {
+        if (field.name === "processStage" || field.name === "status") {
+          return {
+            ...field,
+            shouldShow: () => searchDone,
+          };
+        }
+       
+
+
+        if (field.name === "gemContractFileName") {
+          return {
+            ...field,
+              shouldShow: () =>
+              formData.status === "Completed" &&
+              formData.tenderDetails?.modeOfProcurement === "GEM",
+          };
+      }
+     if (field.name === "buyBackAmount") {
+  return {
+    ...field,
+    shouldShow: () => formData?.indentResponseDTO?.buyBack === "true"
+  };
+}
+
+        if (
+          field.name === "typeOfSecurity" ||
+          field.name === "securityNumber" ||
+          field.name === "securityDate" ||
+          field.name === "expiryDate"
+        ) {
+          return {
+            ...field,
+            shouldShow: () => formData.status === "Completed",
+          };
+        }
+        return field;
+      }),
+    };
+  }
+  return section;
+});
+ 
+
+  // Load initial data
+  useEffect(() => {
+    populateDropdowns();
+  }, []);
+
+  useEffect(() => {
+    const poDraft = localStorage.getItem("poDraft");
+    if (poDraft) {
+      setFormData(JSON.parse(poDraft));
+      message.success("Form loaded from draft.");
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("poDraft", JSON.stringify(formData));
+  }, [formData]);
+
+  // --- Printing Function ---
+
+
+   const printComponentRef = useRef(); 
+
+    const handlePrint = useReactToPrint({
+        content: () => printComponentRef.current,
+        documentTitle: `Po - ${formData?.poId || "Draft"}`
+    });
+
+  return (
+    <Card className="a4-container" ref={printRef}>
+      <Heading title="Purchase Order Creation" />
+      <CustomForm formData={formData} onFinish={onFinish}>
+        {renderFormFields(
+         // hydratedPoDetails,
+         hydratedPoDetailsWithConditionalFields,
+          handleChange,
+          formData,
+          "",
+          null,
+          setFormData,
+          handleSearch
+        )}
+        <ButtonContainer
+          onFinish={onFinish}
+          formData={formData}
+          draftDataName="poDraft"
+          submitBtnLoading={submitBtnLoading}
+          submitBtnEnabled
+          printBtnEnabled
+          draftBtnEnabled
+          handlePrint={handlePrint}
+        />
+      </CustomForm>
+
+      <CustomModal
+        isOpen={modalOpen}
+        setIsOpen={setModalOpen}
+        title="Purchase Order"
+        processNo={generatedPOId}
+      />
+       <div style={{ display: "none" }}>
+                <PoFormat ref={printComponentRef} po={formData} />
+      </div>
+    </Card>
+  );
+};
+
+export default PO;
