@@ -496,4 +496,25 @@ export const IndentDetails = [
       },
     ],
   },
+  {
+    heading: `Document Uploads (Max ${MAX_FILE_SIZE_MB}MB per file)`,
+    colCnt: 2,
+    fieldList: [
+        {
+            name: "uploadingPriorApprovalsFileName",
+            label: "Upload Prior Approvals if any",
+            type: "multiImage",
+        },
+        {
+            name: "technicalSpecificationsFileName",
+            label: "Upload Technical Specifications/ Budgetary Quote",
+            type: "multiImage",
+        },
+        {
+            name: "draftEOIOrRFPFileName",
+            label: "Draft EOI/RFP",
+            type: "multiImage",
+        },
+    ]
+}
 ];

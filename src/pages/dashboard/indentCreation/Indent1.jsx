@@ -1,4 +1,4 @@
-import { Card, message } from 'antd'
+import { Card, message, Select, Row, Col } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 import Heading from '../../../components/DKG_Heading'
@@ -12,59 +12,70 @@ import PrintFormate from '../../../utils/PrintFormate'
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 
+const { Option } = Select;
+// File upload configuration
+const MAX_FILE_SIZE_MB = 50;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const proprietaryLimitedDeclarationLabel = "The budgetary quote was obtained informing the vendor about:  (i) IIA's Payment Terms - 100% payment within 30 days from acceptance (ii). Applicability of providing performance & warranty security. (iii) Applicability of LD Clause."
 
 const modeOfProcurementOptions = [
-    {
-        label: "GEM",
-        value: "GEM"
-    },
-    {
-        label: "Brand PAC",
-        value: "Brand PAC"
-    },
-    {
-        label: "Proprietary/Single Tender",
-        value: "Proprietary/Single Tender"
-    },
-    {
-        label: "Limited Pre Approved Vendor Tender",
-        value: "Limited Pre Approved Vendor Tender"
-    },
-    {
-        label: "Open Tender",
-        value: "Open Tender"
-    },
-    {
-        label: "Global Tender",
-        value: "Global Tender"
-    }
+    { label: "GEM", value: "GEM" },
+    { label: "Brand PAC", value: "Brand PAC" },
+    { label: "Proprietary/Single Tender", value: "Proprietary/Single Tender" },
+    { label: "Limited Pre Approved Vendor Tender", value: "Limited Pre Approved Vendor Tender" },
+    { label: "Open Tender", value: "Open Tender" },
+    { label: "Global Tender", value: "Global Tender" }
 ];
 
 const reasonDropdown = [
     {
-        label:
-            "It is in the knowledge of the user department that only a particular firm is the manufacturer of the required goods",
-        value:
-            "It is in the knowledge of the user department that only a particular firm is the manufacturer of the required goods",
+        label: "It is in the knowledge of the user department that only a particular firm is the manufacturer of the required goods",
+        value: "It is in the knowledge of the user department that only a particular firm is the manufacturer of the required goods",
     },
     {
-        label:
-            "In a case of emergency, the required goods are necessarily to be purchased from a particular source",
-        value:
-            "In a case of emergency, the required goods are necessarily to be purchased from a particular source",
+        label: "In a case of emergency, the required goods are necessarily to be purchased from a particular source",
+        value: "In a case of emergency, the required goods are necessarily to be purchased from a particular source",
     },
     {
-        label:
-            "For standardization of machinery or spare parts to be compatible to the existing sets of equipment, the required item is to be purchased only from a selected firm",
-        value:
-            "For standardization of machinery or spare parts to be compatible to the existing sets of equipment, the required item is to be purchased only from a selected firm",
+        label: "For standardization of machinery or spare parts to be compatible to the existing sets of equipment, the required item is to be purchased only from a selected firm",
+        value: "For standardization of machinery or spare parts to be compatible to the existing sets of equipment, the required item is to be purchased only from a selected firm",
     },
 ];
 
-const Indent1 = () => {
-     const navigate = useNavigate();
+// Job category options
+const jobCategoryOptions = [
+    { label: "AMC (Annual Maintenance Contract)", value: "AMC" },
+    { label: "Rate Contract", value: "Rate Contract" },
+    { label: "Repair & Service", value: "Repair And Service" },
+    { label: "Internet Service", value: "Internet Service" },
+    { label: "Other Service", value: "Other Service" }
+];
 
+// Job subcategory options
+const jobSubcategoryOptions = [
+    { label: "Chemicals", value: "Chemicals" },
+    { label: "Computer & Peripherals", value: "Computer & Peripherals" },
+    { label: "Electrical", value: "Electrical" },
+    { label: "Electronic Items", value: "Electronic Items" },
+    { label: "Equipment", value: "Equipment" },
+    { label: "Furniture", value: "Furniture" },
+    { label: "HARDWARE", value: "HARDWARE" },
+    { label: "Miscellaneous", value: "Miscellaneous" },
+    { label: "Software", value: "Software" },
+    { label: "Stationary", value: "Stationary" },
+    { label: "Vehicles", value: "Vehicles" }
+];
+
+// Currency options
+const currencyOptions = [
+    { label: "USD", value: "USD" },
+    { label: "INR", value: "INR" },
+    { label: "EUR", value: "EUR" },
+    { label: "GBP", value: "GBP" }
+];
+
+const Indent1 = () => {
+    const navigate = useNavigate();
     const { userName, mobileNumber, email, userId, employeeDepartment } = useSelector(state => state.auth)
 
     console.log(employeeDepartment);
@@ -74,59 +85,63 @@ const Indent1 = () => {
     const location = useLocation();
     const { indentId } = location.state || {};
 
-    console.log("Request ID:", indentId); 
+    console.log("Request ID:", indentId);
 
-   /* const handlePrint = useReactToPrint({
-        content: () => printRef.current,
-    });*/
+    // Indent Type State (Material or Job)
+    const [indentType, setIndentType] = useState("material"); // "material" or "job"
+    
+    // Material Category Type State (Computer or Non-Computer)
+    const [materialCategoryType, setMaterialCategoryType] = useState("computer");
+
     const handleCancel = async (remarks) => {
-  try {
-    const payload = {
-      indentId: formData.indentId,
-      cancelStatus: true,  
-      cancelRemarks: remarks
+        try {
+            const payload = {
+                indentId: formData.indentId,
+                cancelStatus: true,
+                cancelRemarks: remarks
+            };
+
+            await axios.put("/api/indents/indent/cancel", payload);
+
+            message.success("Indent cancelled successfully.");
+
+            // Reset form
+            setFormData({
+                indentorName: userName,
+                indentorMobileNo: mobileNumber,
+                indentorEmailAddress: email,
+                projectName: "",
+                consignesLocation: "",
+                materialDetails: [{}],
+                jobDetails: [{}]
+            });
+            setSearchDone(false);
+            setIndentIdDropdown([]);
+        } catch (error) {
+            console.error(error);
+            message.error("Failed to cancel the indent. Please try again.");
+        }
     };
 
-    await axios.put("/api/indents/indent/cancel", payload);
-
-    message.success("Indent cancelled successfully.");
-
-    // Reset form
-    setFormData({
-      indentorName: userName,
-      indentorMobileNo: mobileNumber,
-      indentorEmailAddress: email,
-      projectName: "",
-      consignesLocation: "",
-      materialDetails: [{}]
-    });
-    setSearchDone(false);
-    setIndentIdDropdown([]);
-  } catch (error) {
-    console.error(error);
-    message.error("Failed to cancel the indent. Please try again.");
-  }
-};
-
-    
     const [formData, setFormData] = useState({
         indentorName: userName,
         indentorMobileNo: mobileNumber,
         indentorEmailAddress: email,
         projectName: "",
         consignesLocation: "",
-        materialDetails: [{}]
+        materialDetails: [{}],
+        jobDetails: [{}]
     })
 
     const { locationMaster, projectMaster, materialMaster, vendorMaster } = useSelector(state => state.masters)
 
     const [materialMasterState, setMaterialMasterState] = useState(materialMaster)
+    const [jobMasterState, setJobMasterState] = useState([])
+    const [uomOptions, setUomOptions] = useState([])
 
     const [selectedModeOfProcurement, setSelectedModeOfProcurement] = useState("")
     const [indentIdDropdown, setIndentIdDropdown] = useState([]);
     const [searchDone, setSearchDone] = useState(false);
-
-
 
     const locationDropdown = locationMaster.map((item) => {
         return {
@@ -153,138 +168,116 @@ const Indent1 = () => {
 
     const [modalOpen, setModalOpen] = useState(false);
 
-    const printComponentRef = useRef(); 
+    const printComponentRef = useRef();
 
     const handlePrint = useReactToPrint({
         content: () => printComponentRef.current,
         documentTitle: `Indent - ${formData?.indentId || "Draft"}`
     });
- 
+
     const handleSearchIndentIds = async () => {
-  const { searchType, searchValue } = formData;
+        const { searchType, searchValue } = formData;
 
-  if (!searchValue || !searchType) {
-    message.warning("Please select search type and enter value.");
-    return;
-  }
+        if (!searchValue || !searchType) {
+            message.warning("Please select search type and enter value.");
+            return;
+        }
 
-  try {
-    const { data } = await axios.get(`/api/indents/search`, {
-      params: {
-        type: searchType,
-        value: searchValue
-      }
-    });
-
-    const indentList = data?.responseData || [];
-
-    const dropdownOptions = indentList.map((item) => ({
-      label: item.indentId,
-      value: item.indentId
-    }));
-
-    setIndentIdDropdown(dropdownOptions);
-
-    if (dropdownOptions.length === 0) {
-      message.warning("No indent IDs found.");
-    } else {
-      message.success(`${dropdownOptions.length} Please Select Indent Id in Indent Id Drop Down.`);
-    }
-  } catch (error) {
-    message.error("Error fetching indent IDs.");
-  }
-};
-
-
-
-    const inputFields = [
-        {
-            heading: "Search Indent",
-            colCnt: 2,
-            fieldList: [
-        {
-            name: "searchValue",
-            label: "Search Value",
-            type: "indentSearch",
-            onSearch: () => handleSearchIndentIds(),
-      // formData.searchType === "submittedDate" ? "date" : "text"
-        },
-    ]
-    },
-    {
-        heading: "Status",
-        colCnt:2,
-        fieldList:[
-            ...(searchDone ? [
-    {
-        name: "processStage",
-        label: "Process Stage",
-        type: "text",
-        disabled: true
-    },
-    {
-        name: "status",
-        label: "Status",
-        type: "text",
-        disabled: true
-    }
-] : [])
-        ]
-    },
-        {
-            heading: "Indentor Details",
-            colCnt: 4,
-            fieldList: [
-                {
-                    name: "indentId",
-                    label: "Indent ID",
-                   // type: "search",
-                  //  disabled: formData?.indentId ? true : false
-                    // disabled: true,
-                    type: "select",
-                    options: indentIdDropdown, 
-
-                },
-                {
-                    name: "indentorName",
-                    label: "Indentor Name",
-                    type: "text",
-                    required: true
-                },
-                {
-                    name: "indentorMobileNo",
-                    label: "Mobile No",
-                    type: "text",
-                    required: true
-                },
-                {
-                    name: "indentorEmailAddress",
-                    label: "Email",
-                    type: "text",
-                    required: true
+        try {
+            const { data } = await axios.get(`/api/indents/search`, {
+                params: {
+                    type: searchType,
+                    value: searchValue
                 }
-            ]
-        },
-        {
-            heading: "Project and Location Details",
-            fieldList: [
-                {
-                    name: "projectName",
-                    label: "Project Name",
-                    type: "select",
-                    options: projectDropdown,
-                  //  required: true
-                },
-                {
-                    name: "consignesLocation",
-                    label: "Consignee Location",
-                    type: "select",
-                    options: locationDropdown,
-                    required: true
-                }
-            ]
-        },
-        {
+            });
+
+            const indentList = data?.responseData || [];
+
+            const dropdownOptions = indentList.map((item) => ({
+                label: item.indentId,
+                value: item.indentId
+            }));
+
+            setIndentIdDropdown(dropdownOptions);
+
+            if (dropdownOptions.length === 0) {
+                message.warning("No indent IDs found.");
+            } else {
+                message.success(`${dropdownOptions.length} Please Select Indent Id in Indent Id Drop Down.`);
+            }
+        } catch (error) {
+            message.error("Error fetching indent IDs.");
+        }
+    };
+
+    // Fetch Job Master Data
+    const fetchJobMaster = async () => {
+        try {
+            const { data } = await axios.get("/api/job-master");
+            if (data?.responseData) {
+                setJobMasterState(data.responseData);
+            }
+        } catch (error) {
+            console.error("Error fetching job master:", error);
+            message.error("Failed to load job master data");
+        }
+    };
+
+    // Fetch UOM Master Data
+    const fetchUomMaster = async () => {
+        try {
+            const { data } = await axios.get("/api/uom-master");
+            if (data?.responseData) {
+                const uomList = data.responseData.map(uom => ({
+                    label: uom.uomName,
+                    value: uom.uomCode
+                }));
+                setUomOptions(uomList);
+            }
+        } catch (error) {
+            console.error("Error fetching UOM master:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchJobMaster();
+        fetchUomMaster();
+    }, []);
+
+    // Filter materials based on category type (Computer / Non-Computer)
+    const getFilteredMaterialMaster = () => {
+        if (!materialMasterState || materialMasterState.length === 0) {
+            return [];
+        }
+
+        if (materialCategoryType === "computer") {
+            return materialMasterState.filter(item => 
+                item.subCategory === "Computer & Peripherals" || 
+                item.category === "Computer & Peripherals"
+            );
+        } else if (materialCategoryType === "non-computer") {
+            return materialMasterState.filter(item => 
+                item.subCategory !== "Computer & Peripherals" && 
+                item.category !== "Computer & Peripherals"
+            );
+        }
+        
+        return materialMasterState;
+    };
+
+    // Get job dropdown options
+    const getJobDropdownOptions = () => {
+        return jobMasterState.map(job => ({
+            label: `${job.jobCode} - ${job.jobDescription}`,
+            value: job.jobCode
+        }));
+    };
+
+    // Material Details Input Fields
+    const getMaterialInputFields = () => {
+        const filteredMaterials = getFilteredMaterialMaster();
+        
+        return {
             heading: "Material Details",
             addButton: true,
             name: "materialDetails",
@@ -294,7 +287,7 @@ const Indent1 = () => {
                     label: "Material Code",
                     type: "select",
                     required: true,
-                    options: materialMasterState.map((item) => {
+                    options: filteredMaterials.map((item) => {
                         return {
                             label: item.materialCode + " - " + item.description,
                             value: item.materialCode
@@ -374,7 +367,6 @@ const Indent1 = () => {
                     label: "Budget Code",
                     type: "select",
                     options: budgetCodeDropdown,
-                  //  required: true
                 },
                 {
                     name: "vendorNames",
@@ -385,50 +377,218 @@ const Indent1 = () => {
                     disabled: selectedModeOfProcurement !== "Proprietary/Single Tender" && selectedModeOfProcurement !== "Limited Pre Approved Vendor Tender",
                 }
             ]
+        };
+    };
+
+    // Job Details Input Fields
+    const getJobInputFields = () => {
+        return {
+            heading: "Job/Service Details",
+            addButton: true,
+            name: "jobDetails",
+            children: [
+                {
+                    name: "jobCode",
+                    label: "Job Code",
+                    type: "select",
+                    required: true,
+                    options: getJobDropdownOptions()
+                },
+                {
+                    name: "jobDescription",
+                    label: "Job Description",
+                    type: "text",
+                    span: 2,
+                    required: true,
+                    disabled: true
+                },
+                {
+                    name: "category",
+                    label: "Job Category",
+                    type: "select",
+                    required: true,
+                    options: jobCategoryOptions,
+                    disabled: true
+                },
+                {
+                    name: "subCategory",
+                    label: "Job Subcategory",
+                    type: "select",
+                    required: true,
+                    options: jobSubcategoryOptions,
+                    disabled: true
+                },
+                {
+                    name: "uom",
+                    label: "UOM",
+                    type: "select",
+                    required: true,
+                    options: uomOptions,
+                    disabled: true
+                },
+                {
+                    name: "quantity",
+                    label: "Quantity",
+                    type: "text",
+                    required: true
+                },
+                {
+                    name: "estimatedPrice",
+                    label: "Estimated Price",
+                    type: "text",
+                    required: true,
+                    disabled: true
+                },
+                {
+                    name: "totalPrice",
+                    label: "Total Price",
+                    type: "text",
+                    disabled: true,
+                    dependencies: ["quantity", "estimatedPrice"],
+                    value: (formData, index) => {
+                        const quantity = Number(formData.jobDetails[index]?.quantity) || 0;
+                        const estimatedPrice = Number(formData.jobDetails[index]?.estimatedPrice) || 0;
+                        return (quantity * estimatedPrice).toFixed(2);
+                    }
+                },
+                {
+                    name: "currency",
+                    label: "Currency",
+                    type: "select",
+                    required: true,
+                    options: currencyOptions,
+                    disabled: true
+                },
+                {
+                    name: "briefDescription",
+                    label: "Brief Description of Job",
+                    type: "text",
+                    span: 2,
+                    disabled: true
+                }
+            ]
+        };
+    };
+
+    // Build input fields dynamically based on indent type
+    const inputFields = [
+        {
+            heading: "Search Indent",
+            colCnt: 2,
+            fieldList: [
+                {
+                    name: "searchValue",
+                    label: "Search Value",
+                    type: "indentSearch",
+                    onSearch: () => handleSearchIndentIds(),
+                },
+            ]
         },
         {
-            heading: "Document Uploads",
+            heading: "Status",
+            colCnt: 2,
+            fieldList: [
+                ...(searchDone ? [
+                    {
+                        name: "processStage",
+                        label: "Process Stage",
+                        type: "text",
+                        disabled: true
+                    },
+                    {
+                        name: "status",
+                        label: "Status",
+                        type: "text",
+                        disabled: true
+                    }
+                ] : [])
+            ]
+        },
+        {
+            heading: "Indentor Details",
+            colCnt: 4,
+            fieldList: [
+                {
+                    name: "indentId",
+                    label: "Indent ID",
+                    type: "select",
+                    options: indentIdDropdown,
+                },
+                {
+                    name: "indentorName",
+                    label: "Indentor Name",
+                    type: "text",
+                    required: true
+                },
+                {
+                    name: "indentorMobileNo",
+                    label: "Mobile No",
+                    type: "text",
+                    required: true
+                },
+                {
+                    name: "indentorEmailAddress",
+                    label: "Email",
+                    type: "text",
+                    required: true
+                }
+            ]
+        },
+        {
+            heading: "Project and Location Details",
+            fieldList: [
+                {
+                    name: "projectName",
+                    label: "Project Name",
+                    type: "select",
+                    options: projectDropdown,
+                },
+                {
+                    name: "consignesLocation",
+                    label: "Consignee Location",
+                    type: "select",
+                    options: locationDropdown,
+                    required: true
+                }
+            ]
+        },
+        // Conditionally add Material or Job Details based on indent type
+        indentType === "material" ? getMaterialInputFields() : getJobInputFields(),
+        {
+            heading: (
+        <span>
+            Document Uploads 
+            <span style={{ color: '#ff4d4f', fontSize: '12px', fontWeight: 'normal', marginLeft: '10px' }}>
+                (Maximum upload limit: {MAX_FILE_SIZE_MB}MB per file)
+            </span>
+        </span>
+    ),
             colCnt: 2,
             fieldList: [
                 {
                     name: "uploadingPriorApprovalsFileName",
                     label: "Upload Prior Approvals if any",
                     type: "multiImage",
-                    
                 },
                 {
                     name: "technicalSpecificationsFileName",
                     label: "Upload Technical Specifications/ Budgetary Quote",
                     type: "multiImage",
-                    
                 },
                 {
                     name: "draftEOIOrRFPFileName",
                     label: "Draft EOI/RFP",
                     type: "multiImage",
-                    
                 },
                 {
                     name: "quarter",
                     label: "Quarter",
                     type: "select",
                     options: [
-                        {
-                            label: "Q1",
-                            value: "Q1"
-                        },
-                        {
-                            label: "Q2",
-                            value: "Q2"
-                        },
-                        {
-                            label: "Q3",
-                            value: "Q3"
-                        },
-                        {
-                            label: "Q4",
-                            value: "Q4"
-                        }
+                        { label: "Q1", value: "Q1" },
+                        { label: "Q2", value: "Q2" },
+                        { label: "Q3", value: "Q3" },
+                        { label: "Q4", value: "Q4" }
                     ]
                 },
                 {
@@ -462,18 +622,8 @@ const Indent1 = () => {
                         type: "checkbox",
                         span: 2,
                         required: true
-
                     }
                 ] : []),
-                // ...((selectedModeOfProcurement === "Proprietary/Single Tender") ? [
-                //     {
-                //         name: "proprietaryJustification",
-                //         label: "Proprietary Justification",
-                //         type: "text",
-                //         span: 2,
-                //         required: true
-                //     }
-                // ] : []),
                 {
                     name: "buyBack",
                     type: "checkbox",
@@ -484,28 +634,28 @@ const Indent1 = () => {
                     label: "Upload Buy Back File",
                     type: "multiImage",
                     required: true
-                },{
+                }, {
                     name: "modelNumber",
                     label: "Model Number",
                     type: "text",
                     required: true,
-                },{
+                }, {
                     name: "serialNumber",
                     label: "Serial Number",
                     type: "text",
                     required: true,
-                },{
+                }, {
                     name: "dateOfPurchase",
                     label: "Date Of Purchase",
                     type: "date",
                     required: true,
-                },{
+                }, {
                     name: "buyBackAmount",
                     label: "Buy Back Amount",
                     type: "text",
                     required: true,
                 }
-            ] : []),
+                ] : []),
                 {
                     name: "brandPac",
                     type: "checkbox",
@@ -548,7 +698,6 @@ const Indent1 = () => {
                     type: "select",
                     required: true,
                     options: locationDropdown,
-                    // required: true
                 }
                 ] : []),
                 {
@@ -561,28 +710,22 @@ const Indent1 = () => {
                         name: "estimatedRate",
                         label: "Estimated Rate",
                         type: "text",
-                        required:true,
+                        required: true,
                     },
                     {
                         name: "periodOfContract",
                         label: "Contract Period (Months)",
                         type: "text",
-                        required:true,
+                        required: true,
                     },
                     {
                         name: "singleAndMultipleJob",
                         label: "Job Type",
                         type: "select",
-                        required:true,
+                        required: true,
                         options: [
-                            {
-                                label: "Single",
-                                value: "Single"
-                            },
-                            {
-                                label: "Multiple",
-                                value: "Multiple"
-                            }
+                            { label: "Single", value: "Single" },
+                            { label: "Multiple", value: "Multiple" }
                         ],
                     }
                 ] : []),
@@ -591,57 +734,51 @@ const Indent1 = () => {
     ]
 
     useEffect(() => {
-        if(selectedModeOfProcurement === "Brand PAC"){
+        if (selectedModeOfProcurement === "Brand PAC") {
             setFormData({
                 ...formData,
                 brandPac: true
             })
         }
-        else{
+        else {
             setFormData({
-               ...formData,
-               brandPac: false
+                ...formData,
+                brandPac: false
             })
         }
     }, [selectedModeOfProcurement])
-/*
-    useEffect(() => {
-    const fetchIndentIds = async () => {
-        try {
-            const { data } = await axios.get("/approved-indents"); 
-            const dropdownOptions = data.responseData.map(item => ({
-                label: item.indentId,
-                value: item.indentId
-            }));
-            setIndentIdDropdown(dropdownOptions);
-        } catch (err) {
-            message.error("Failed to load Indent IDs.");
-        }
-    };
-
-        fetchIndentIds();
-    }, []);*/
-
 
     const replaceMaterial = (prevMaterial, newMaterial) => {
         const prevMtlrDtl = materialMaster.find((item) => item.materialCode === prevMaterial.materialCode)
-       setMaterialMasterState(prev => {
-           let newMaterialMaster = [...prev]
-           newMaterialMaster = newMaterialMaster.filter((item) => item.materialCode !== newMaterial.materialCode)
-           newMaterialMaster.push(prevMtlrDtl)
-           return newMaterialMaster
-       })
+        setMaterialMasterState(prev => {
+            let newMaterialMaster = [...prev]
+            newMaterialMaster = newMaterialMaster.filter((item) => item.materialCode !== newMaterial.materialCode)
+            newMaterialMaster.push(prevMtlrDtl)
+            return newMaterialMaster
+        })
     }
+
+    // Handle Job Selection
+    const handleJobSelect = (job) => {
+        const filteredJobs = jobMasterState.filter(item => item.category === job.category && item.jobCode !== job.jobCode);
+        setJobMasterState(prev => {
+            const jobToAdd = jobMasterState.find(item => item.jobCode === job.jobCode);
+            if (jobToAdd) {
+                return filteredJobs;
+            }
+            return prev;
+        });
+    };
 
     const handleChange = (fieldName, value) => {
         console.log("Fieldname, value: ", fieldName, value)
         if (fieldName === "indentId") {
             setFormData({
-            ...formData,
-            indentId: value
-        });
-        handleSearch(value);
-        return;
+                ...formData,
+                indentId: value
+            });
+            handleSearch(value);
+            return;
         }
 
         if (typeof fieldName === "string") {
@@ -649,74 +786,114 @@ const Indent1 = () => {
                 ...formData,
                 [fieldName]: value
             })
-
             return
         }
 
         const name = fieldName[2]
         const index = fieldName[1]
+        const section = fieldName[0]
 
-        if (name === "materialCode") {
-            const prevMaterialCode = formData.materialDetails[index]?.materialCode || null;
-            const material = materialMasterState.find((item) => item.materialCode === value)
-            if(prevMaterialCode){
-                replaceMaterial(formData.materialDetails[index], material)
+        // Handle Material Details
+        if (section === "materialDetails") {
+            if (name === "materialCode") {
+                const prevMaterialCode = formData.materialDetails[index]?.materialCode || null;
+                const material = materialMasterState.find((item) => item.materialCode === value)
+                if (prevMaterialCode) {
+                    replaceMaterial(formData.materialDetails[index], material)
+                }
+                else {
+                    handleMaterialSelect(material)
+                }
+                const { materialDetails } = formData;
+                materialDetails[index].materialCode = value
+                materialDetails[index].materialDescription = material.description
+                materialDetails[index].materialCategory = material.category
+                materialDetails[index].materialSubCategory = material.subCategory
+                materialDetails[index].uom = material.uom
+                materialDetails[index].quantity = ""
+                materialDetails[index].unitPrice = material.unitPrice
+                materialDetails[index].currency = material.currency
+
+                setFormData({
+                    ...formData,
+                    materialDetails: materialDetails
+                })
             }
-            else{
-                handleMaterialSelect(material)
+            else if (name === "modeOfProcurement") {
+                const { materialDetails } = formData;
+                const updatedMaterialDetails = materialDetails.map(item => ({ ...item, modeOfProcurement: value, vendorNames: [] }))
+
+                setSelectedModeOfProcurement(value)
+
+                setFormData({
+                    ...formData,
+                    materialDetails: updatedMaterialDetails
+                })
             }
-            const { materialDetails } = formData;
-            materialDetails[index].materialCode = value
-            materialDetails[index].materialDescription = material.description
-            materialDetails[index].materialCategory = material.category
-            materialDetails[index].materialSubCategory = material.subCategory
-            materialDetails[index].uom = material.uom
-            materialDetails[index].quantity = ""
-            materialDetails[index].unitPrice = material.unitPrice
-            materialDetails[index].currency = material.currency
-
-            setFormData({
-                ...formData,
-                materialDetails: materialDetails
-            })
-        }
-        else if (name === "modeOfProcurement") {
-            const { materialDetails } = formData;
-            const updatedMaterialDetails = materialDetails.map(item => ({ ...item, modeOfProcurement: value, vendorNames: [] }))
-
-            setSelectedModeOfProcurement(value)
-
-            setFormData({
-                ...formData,
-                materialDetails: updatedMaterialDetails
-            })
-        }
-        else if(name === "quantity" || name === "unitPrice"){
-            const { materialDetails } = formData;
-            materialDetails[index][name] = value
-            materialDetails[index].totalPrice = (Number(materialDetails[index].quantity || 0) * Number(materialDetails[index].unitPrice || 0)).toFixed(2)
-            setFormData({
-               ...formData,
-                materialDetails: materialDetails
-            })
-        }
-        else {
-            const { materialDetails } = formData;
-
-
-            
-            if(name === "vendorNames" && formData.materialDetails[index]?.modeOfProcurement === "Proprietary/Single Tender"){
-                materialDetails[index][name] = []
-                materialDetails[index][name].push(value)
-                
-            }else{
+            else if (name === "quantity" || name === "unitPrice") {
+                const { materialDetails } = formData;
                 materialDetails[index][name] = value
+                materialDetails[index].totalPrice = (Number(materialDetails[index].quantity || 0) * Number(materialDetails[index].unitPrice || 0)).toFixed(2)
+                setFormData({
+                    ...formData,
+                    materialDetails: materialDetails
+                })
             }
+            else {
+                const { materialDetails } = formData;
 
-            setFormData({
-                ...formData,
-                materialDetails: materialDetails
-            })
+                if (name === "vendorNames" && formData.materialDetails[index]?.modeOfProcurement === "Proprietary/Single Tender") {
+                    materialDetails[index][name] = []
+                    materialDetails[index][name].push(value)
+                } else {
+                    materialDetails[index][name] = value
+                }
+
+                setFormData({
+                    ...formData,
+                    materialDetails: materialDetails
+                })
+            }
+        }
+        // Handle Job Details
+        else if (section === "jobDetails") {
+            if (name === "jobCode") {
+                const job = jobMasterState.find((item) => item.jobCode === value)
+                if (job) {
+                    const { jobDetails } = formData;
+                    jobDetails[index].jobCode = value
+                    jobDetails[index].jobDescription = job.jobDescription
+                    jobDetails[index].category = job.category
+                    jobDetails[index].subCategory = job.subCategory
+                    jobDetails[index].uom = job.uom
+                    jobDetails[index].quantity = ""
+                    jobDetails[index].estimatedPrice = job.estimatedPriceWithCcy
+                    jobDetails[index].currency = job.currency
+                    jobDetails[index].briefDescription = job.briefDescription
+
+                    setFormData({
+                        ...formData,
+                        jobDetails: jobDetails
+                    })
+                }
+            }
+            else if (name === "quantity" || name === "estimatedPrice") {
+                const { jobDetails } = formData;
+                jobDetails[index][name] = value
+                jobDetails[index].totalPrice = (Number(jobDetails[index].quantity || 0) * Number(jobDetails[index].estimatedPrice || 0)).toFixed(2)
+                setFormData({
+                    ...formData,
+                    jobDetails: jobDetails
+                })
+            }
+            else {
+                const { jobDetails } = formData;
+                jobDetails[index][name] = value
+                setFormData({
+                    ...formData,
+                    jobDetails: jobDetails
+                })
+            }
         }
     }
 
@@ -733,10 +910,10 @@ const Indent1 = () => {
         const material = materialDetails[index]
 
         if (material.materialCode) {
-            if(formData.materialDetails.length === 1){
+            if (formData.materialDetails.length === 1) {
                 setMaterialMasterState(materialMaster)
             }
-            else{
+            else {
                 const newMaterialDtl = materialMaster.find((item) => item.materialCode === material.materialCode)
                 const newMaterialMasterState = [...materialMasterState, newMaterialDtl]
                 setMaterialMasterState(newMaterialMasterState)
@@ -744,43 +921,68 @@ const Indent1 = () => {
         }
     }
 
+    // Handle Job Deselect
+    const handleJobDeselect = (index) => {
+        const { jobDetails } = formData;
+        const job = jobDetails[index]
+
+        if (job.jobCode) {
+            fetchJobMaster();
+        }
+    }
+
     const handleSearch = async (value) => {
         try {
-            const {data} = await axios.get(`/api/indents/indentData/${value}`)
+            const { data } = await axios.get(`/api/indents/indentData/${value}`)
             setFormData(data.responseData || {})
-            setSearchDone(true); 
+            setSearchDone(true);
         }
-        catch(error){
+        catch (error) {
             message.error("Error while fetching indent data.")
         }
     }
-   
+
     useEffect(() => {
         if (indentId) {
-        handleSearch(indentId); 
-    }
+            handleSearch(indentId);
+        }
     }, [indentId]);
 
-/*
     const onFinish = async () => {
-        if (selectedModeOfProcurement === "Limited Pre Approved Vendor Tender") {
-            let minFourVendorSelected = true;
+        if (indentType === "material") {
+            if (selectedModeOfProcurement === "Limited Pre Approved Vendor Tender") {
+                let minFourVendorSelected = true;
 
-            formData.materialDetails.forEach((item, index) => {
-                if (item.vendorNames.length < 4) {
-                    message.error("Atleast 4 vendors should be selected for Limited Pre Approved Vendor Tender.")
-                    minFourVendorSelected = false;
-                    return;
-                }
-            })
+                formData.materialDetails.forEach((item) => {
+                    if (item.vendorNames.length < 4) {
+                        message.error("At least 4 vendors should be selected for Limited Pre Approved Vendor Tender.");
+                        minFourVendorSelected = false;
+                        return;
+                    }
+                });
 
-            if (!minFourVendorSelected) {
-                return;
+                if (!minFourVendorSelected) return;
             }
 
+            let proprietaryInvalid = false;
+
+            formData.materialDetails.forEach((item, index) => {
+                if (item.modeOfProcurement === "Proprietary/Single Tender") {
+                    if (!item.vendorNames || item.vendorNames.length !== 1) {
+                        message.error(`Material ${index + 1}: Please select one vendor for Proprietary/Single Tender.`);
+                        proprietaryInvalid = true;
+                        return;
+                    }
+                }
+            });
+
+            if (proprietaryInvalid) return;
         }
+
         const payload = {
             ...formData,
+            indentType: indentType,
+            materialCategoryType: indentType === "material" ? materialCategoryType : null,
             fileType: "Indent",
             uploadBuyBackFileNames: formData.buyBack ? formData.uploadBuyBackFileNames : null,
             uploadPACOrBrandPACFileName: formData.brandPac ? formData.uploadPACOrBrandPACFileName : null,
@@ -795,126 +997,144 @@ const Indent1 = () => {
             proprietaryJustification: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.proprietaryJustification : null,
             createdBy: userId,
             employeeDepartment: employeeDepartment,
-            materialDetails: formData.materialDetails.map((item) => {
-                return {
-                    ...item,
-                    vendorNames: selectedModeOfProcurement === "Proprietary/Single Tender" ? [item.vendorNames] : item.vendorNames,
-                }
-            })
-        }
+            materialDetails: indentType === "material" ? formData.materialDetails : null,
+            jobDetails: indentType === "job" ? formData.jobDetails : null,
+        };
 
         try {
-            setSubmitBtnLoading(true)
-            const { data } = await axios.post("/api/indents", payload)
-            setFormData({
-                ...formData,
-                indentId: data?.responseData?.indentId
-            })
-            setModalOpen(true)
-        }
-        catch (error) {
-            
-            message.error(error.message || "Error submitting indent.")
-        }
-        finally {
-            setSubmitBtnLoading(false)
-        }
-    }*/
-
-    console.log("Formdata: ", formData)
-   const onFinish = async () => {
-    if (selectedModeOfProcurement === "Limited Pre Approved Vendor Tender") {
-        let minFourVendorSelected = true;
-
-        formData.materialDetails.forEach((item) => {
-            if (item.vendorNames.length < 4) {
-                message.error("At least 4 vendors should be selected for Limited Pre Approved Vendor Tender.");
-                minFourVendorSelected = false;
-                return;
-            }
-        });
-
-        if (!minFourVendorSelected) return;
-    }
-    let proprietaryInvalid = false;
-
-    formData.materialDetails.forEach((item, index) => {
-    if (item.modeOfProcurement === "Proprietary/Single Tender") {
-        if (!item.vendorNames || item.vendorNames.length !== 1) {
-            message.error(`Material ${index + 1}: Please select one vendor for Proprietary/Single Tender.`);
-            proprietaryInvalid = true;
-            return;
-        }
-    }
-    });
-
-    if (proprietaryInvalid) return;
-
-    const payload = {
-        ...formData,
-        fileType: "Indent",
-        uploadBuyBackFileNames: formData.buyBack ? formData.uploadBuyBackFileNames : null,
-        uploadPACOrBrandPACFileName: formData.brandPac ? formData.uploadPACOrBrandPACFileName : null,
-        brandAndModel: formData.brandPac ? formData.brandAndModel : null,
-        preBidMeetingDate: formData.isPreBidMeetingRequired ? formData.preBidMeetingDate : null,
-        preBidMeetingVenue: formData.isPreBidMeetingRequired ? formData.preBidMeetingVenue : null,
-        estimatedRate: formData.isItARateContractIndent ? formData.estimatedRate : null,
-        periodOfContract: formData.isItARateContractIndent ? formData.periodOfContract : null,
-        singleAndMultipleJob: formData.isItARateContractIndent ? formData.singleAndMultipleJob : null,
-        justification: formData.brandPac ? formData.justification : null,
-        reason: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.reason : null,
-        proprietaryJustification: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.proprietaryJustification : null,
-        createdBy: userId,
-        employeeDepartment: employeeDepartment,
-        materialDetails: formData.materialDetails
-       
-    };
-
-    try {
         setSubmitBtnLoading(true);
         let response;
 
-        if (formData?.indentId) {
-            // Update existing indent
-            response = await axios.put(`/api/indents/${formData.indentId}`, payload);
-           // data = response.data;
-            message.success("Indent updated successfully");
-            navigate("/queue");
-        } else {
-            // Create new indent
-            response = await axios.post("/api/indents", payload);
-        }
+        const axiosConfig = {
+            timeout: 300000, // 5 minutes timeout for large uploads
+        };
 
-        setFormData({
-            ...formData,
-            indentId: response?.data?.responseData?.indentId
-        });
+            if (formData?.indentId) {
+                response = await axios.put(`/api/indents/${formData.indentId}`, payload);
+                message.success("Indent updated successfully");
+                navigate("/queue");
+            } else {
+                response = await axios.post("/api/indents", payload);
+            }
 
-        setModalOpen(true);
+            setFormData({
+                ...formData,
+                indentId: response?.data?.responseData?.indentId
+            });
+
+            setModalOpen(true);
     } catch (error) {
-        message.error(error.message || "Error submitting indent.");
+        // Handle file size error specifically
+        if (error.response?.status === 413 || 
+            error.response?.data?.responseStatus?.errorType === "FILE_TOO_LARGE") {
+            message.error(`File size too large. Maximum ${MAX_FILE_SIZE_MB}MB per file allowed.`);
+        } else {
+            message.error(error.response?.data?.responseStatus?.message || error.message || "Error submitting indent.");
+        }
     } finally {
         setSubmitBtnLoading(false);
     }
-    };
-
-
-    
+};
 
     const addMaterialFunc = () => {
-        setFormData({
-            ...formData,
-            materialDetails: [...formData.materialDetails, {}]
-        })
+        if (indentType === "material") {
+            setFormData({
+                ...formData,
+                materialDetails: [...formData.materialDetails, {}]
+            })
+        } else {
+            setFormData({
+                ...formData,
+                jobDetails: [...formData.jobDetails, {}]
+            })
+        }
     }
+
     const additionalFunc = {
         "addMaterialSection": addMaterialFunc,
-        "materialDeselect": (index) => handleMaterialDeselect(index)
+        "materialDeselect": (index) => indentType === "material" ? handleMaterialDeselect(index) : handleJobDeselect(index)
     }
+
+    // Handle Indent Type Change
+    const handleIndentTypeChange = (value) => {
+        setIndentType(value);
+        
+        if (value === "job") {
+            setMaterialCategoryType("all");
+        }
+        
+        setFormData({
+            ...formData,
+            materialDetails: value === "material" ? [{}] : formData.materialDetails,
+            jobDetails: value === "job" ? [{}] : formData.jobDetails
+        });
+    };
+
+    // Handle Material Category Type Change
+    const handleMaterialCategoryTypeChange = (value) => {
+        setMaterialCategoryType(value);
+        
+        setFormData({
+            ...formData,
+            materialDetails: [{}]
+        });
+        
+        setMaterialMasterState(materialMaster);
+    };
 
     return (
         <Card className='a4-container' ref={printRef}>
             <Heading title="Indent Creation" />
+
+            {/* Indent Type and Category Selection - Styled as form fields */}
+            <Row gutter={16} style={{ marginBottom: '20px', marginTop: '16px' }}>
+                <Col span={6}>
+                    <div style={{ marginBottom: '8px' }}>
+                        <label style={{ 
+                            fontSize: '14px', 
+                            color: 'rgba(0, 0, 0, 0.85)',
+                            fontWeight: 'normal'
+                        }}>
+                            <span style={{ color: '#ff4d4f', marginRight: '4px' }}>*</span>
+                            Indent Type
+                        </label>
+                    </div>
+                    <Select
+                        value={indentType}
+                        onChange={handleIndentTypeChange}
+                        style={{ width: '100%' }}
+                        placeholder="Select Indent Type"
+                    >
+                        <Option value="material">Material Indent</Option>
+                        <Option value="job">Job/Service Indent</Option>
+                    </Select>
+                </Col>
+                
+                {indentType === "material" && (
+                    <Col span={6}>
+                        <div style={{ marginBottom: '8px' }}>
+                            <label style={{ 
+                                fontSize: '14px', 
+                                color: 'rgba(0, 0, 0, 0.85)',
+                                fontWeight: 'normal'
+                            }}>
+                                Material Category
+                            </label>
+                        </div>
+                        <Select
+                            value={materialCategoryType}
+                            onChange={handleMaterialCategoryTypeChange}
+                            style={{ width: '100%' }}
+                            placeholder="Select Category"
+                        >
+                            {/* <Option value="all">All</Option> */}
+                            <Option value="computer">Computer</Option>
+                            <Option value="non-computer">Non-Computer</Option>
+                        </Select>
+                    </Col>
+                )}
+            </Row>
+
             <CustomForm formData={formData} onFinish={onFinish}>
                 {renderFormFields(inputFields, handleChange, formData, "", null, setFormData, handleSearch, additionalFunc)}
                 <ButtonContainer
@@ -926,16 +1146,14 @@ const Indent1 = () => {
                     printBtnEnabled
                     draftBtnEnabled
                     handlePrint={handlePrint}
-                    showCancel={searchDone}        // <-- show only if search is done
-                    onCancel={handleCancel} 
+                    showCancel={searchDone}
+                    onCancel={handleCancel}
                 />
-               
-               
             </CustomForm>
             <CustomModal isOpen={modalOpen} setIsOpen={setModalOpen} title="Indent" processNo={formData?.indentId} />
-             <div style={{ display: "none" }}>
+            <div style={{ display: "none" }}>
                 <PrintFormate ref={printComponentRef} data={formData} />
-             </div>
+            </div>
         </Card>
     )
 }

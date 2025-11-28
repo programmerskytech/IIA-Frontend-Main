@@ -12,6 +12,9 @@ import {
   Col,
   message,
   Modal,
+  Radio,
+  Divider,
+  Card,
 } from "antd";
 import {
   UploadOutlined,
@@ -22,6 +25,8 @@ import {
   ReloadOutlined,
   PrinterOutlined,
   CheckCircleOutlined,
+  PlusOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
@@ -43,23 +48,62 @@ const quarterDropdownOptions = [
 
 const reasonDropdownOptions = [
   {
-    label:
-      "It is in the knowledge of the user department that only a particular firm is the manufacturer of the required goods",
-    value:
-      "It is in the knowledge of the user department that only a particular firm is the manufacturer of the required goods",
+    label: "It is in the knowledge of the user department that only a particular firm is the manufacturer of the required goods",
+    value: "It is in the knowledge of the user department that only a particular firm is the manufacturer of the required goods",
   },
   {
-    label:
-      "In a case of emergency, the required goods are necessarily to be purchased from a particular source",
-    value:
-      "In a case of emergency, the required goods are necessarily to be purchased from a particular source",
+    label: "In a case of emergency, the required goods are necessarily to be purchased from a particular source",
+    value: "In a case of emergency, the required goods are necessarily to be purchased from a particular source",
   },
   {
-    label:
-      "For standardization of machinery or spare parts to be compatible to the existing sets of equipment, the required item is to be purchased only from a selected firm",
-    value:
-      "For standardization of machinery or spare parts to be compatible to the existing sets of equipment, the required item is to be purchased only from a selected firm",
+    label: "For standardization of machinery or spare parts to be compatible to the existing sets of equipment, the required item is to be purchased only from a selected firm",
+    value: "For standardization of machinery or spare parts to be compatible to the existing sets of equipment, the required item is to be purchased only from a selected firm",
   },
+];
+
+// Job category options
+const jobCategoryOptions = [
+  { label: "AMC (Annual Maintenance Contract)", value: "AMC" },
+  { label: "Rate Contract", value: "Rate Contract" },
+  { label: "Repair & Service", value: "Repair And Service" },
+  { label: "Internet Service", value: "Internet Service" },
+  { label: "Other Service", value: "Other Service" },
+];
+
+// Job subcategory options
+const jobSubcategoryOptions = [
+  { label: "Chemicals", value: "Chemicals" },
+  { label: "Computer & Peripherals", value: "Computer & Peripherals" },
+  { label: "Electrical", value: "Electrical" },
+  { label: "Electronic Items", value: "Electronic Items" },
+  { label: "Equipment", value: "Equipment" },
+  { label: "Furniture", value: "Furniture" },
+  { label: "HARDWARE", value: "HARDWARE" },
+  { label: "Miscellaneous", value: "Miscellaneous" },
+  { label: "Software", value: "Software" },
+  { label: "Stationary", value: "Stationary" },
+  { label: "Vehicles", value: "Vehicles" },
+];
+
+// Currency options
+const currencyOptions = [
+  { label: "INR", value: "INR" },
+  { label: "USD", value: "USD" },
+  { label: "EUR", value: "EUR" },
+  { label: "GBP", value: "GBP" },
+];
+
+// UOM options
+const uomOptions = [
+  { label: "Nos", value: "Nos" },
+  { label: "Kg", value: "Kg" },
+  { label: "Ltr", value: "Ltr" },
+  { label: "Mtr", value: "Mtr" },
+  { label: "Set", value: "Set" },
+  { label: "Pair", value: "Pair" },
+  { label: "Box", value: "Box" },
+  { label: "Pack", value: "Pack" },
+  { label: "Unit", value: "Unit" },
 ];
 
 const Form1 = () => {
@@ -79,15 +123,22 @@ const Form1 = () => {
   const [showDraftSavedModal, setShowDraftSavedModal] = useState(false);
   const [isBrandPac, setIsBrandPac] = useState(false);
   const [buyBackOption, setBuyBackOption] = useState(false);
+  const [hasProprietaryItem, setHasProprietaryItem] = useState(false);
+
+  // Indent Type State
+  const [indentType, setIndentType] = useState("material"); // "material" or "job"
+  
+  // Material Category Type State
+  const [materialCategoryType, setMaterialCategoryType] = useState("all"); // "all", "computer", "non-computer"
 
   const { userName, email, mobileNumber } = useSelector((state) => state.auth);
-
-  const [hasProprietaryItem, setHasProprietaryItem] = useState(false);
 
   const printRef = useRef();
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
   });
+
+  // Fetch locations
   useEffect(() => {
     const fetchLocations = async () => {
       try {
@@ -112,21 +163,7 @@ const Form1 = () => {
     fetchLocations();
   }, []);
 
-  const handleSaveDraft = () => {
-    const formValues = form.getFieldsValue();
-    localStorage.setItem("draftFormData", JSON.stringify(formValues));
-    setShowDraftSavedModal(true);
-  };
-
-  // Load draft
-  useEffect(() => {
-    const savedDraft = localStorage.getItem("draftFormData");
-    if (savedDraft) {
-      const draftValues = JSON.parse(savedDraft);
-      form.setFieldsValue(draftValues);
-    }
-  }, [form]);
-
+  // Fetch projects
   useEffect(() => {
     const fetchProjects = async () => {
       setLoading(true);
@@ -153,57 +190,89 @@ const Form1 = () => {
     };
     fetchProjects();
   }, []);
+
+  // Fetch materials
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      try {
+        const response = await fetch(
+          "http://103.181.158.220:8081/astro-service/api/material-master"
+        );
+        const data = await response.json();
+
+        if (!data.responseData) throw new Error("Invalid material data");
+
+        const materialMap = data.responseData.reduce(
+          (acc, material) => ({
+            ...acc,
+            [material.materialCode]: {
+              ...material,
+              materialDescription: material.description,
+              materialCategory: material.category,
+              materialSubCategory: material.subCategory,
+              currency: material.currency,
+              modeOfProcurement: material.modeOfProcurement,
+              unitPrice: material.unitPrice,
+              vendorNames: material.vendorNames,
+            },
+          }),
+          {}
+        );
+
+        setMaterialDetailsMap(materialMap);
+        setMaterialList(Object.keys(materialMap));
+      } catch (error) {
+        message.error("Failed to load materials");
+        console.error("Material fetch error:", error);
+      }
+    };
+
+    fetchMaterials();
+  }, []);
+
+  // Filter materials based on category type
+  const getFilteredMaterialList = () => {
+    if (materialCategoryType === "computer") {
+      return materialList.filter((code) => {
+        const material = materialDetailsMap[code];
+        return (
+          material?.materialSubCategory === "Computer & Peripherals" ||
+          material?.materialCategory === "Computer & Peripherals"
+        );
+      });
+    } else if (materialCategoryType === "non-computer") {
+      return materialList.filter((code) => {
+        const material = materialDetailsMap[code];
+        return (
+          material?.materialSubCategory !== "Computer & Peripherals" &&
+          material?.materialCategory !== "Computer & Peripherals"
+        );
+      });
+    }
+    return materialList;
+  };
+
+  const handleSaveDraft = () => {
+    const formValues = form.getFieldsValue();
+    localStorage.setItem("draftFormData", JSON.stringify(formValues));
+    setShowDraftSavedModal(true);
+  };
+
+  // Load draft
+  useEffect(() => {
+    const savedDraft = localStorage.getItem("draftFormData");
+    if (savedDraft) {
+      const draftValues = JSON.parse(savedDraft);
+      form.setFieldsValue(draftValues);
+    }
+  }, [form]);
+
   const handleCheckboxChange4 = (e) => {
     setBuyBackOption(e.target.checked);
   };
 
-  //   const handleSaveDraft = () => {
-  //     try {
-  //       const formValues = form.getFieldsValue();
-  //       const sanitizedValues = {
-  //         ...formValues,
-  //         uploadingPriorApprovalsFileName:
-  //           formValues.uploadingPriorApprovalsFileName?.map((file) => ({
-  //             uid: file.uid,
-  //             name: file.name,
-  //             status: file.status,
-  //           })),
-  //         technicalSpecificationsFileName:
-  //           formValues.technicalSpecificationsFileName?.map((file) => ({
-  //             uid: file.uid,
-  //             name: file.name,
-  //             status: file.status,
-  //           })),
-  //         draftEOIOrRFPFileName: formValues.draftEOIOrRFPFileName?.map(
-  //           (file) => ({
-  //             uid: file.uid,
-  //             name: file.name,
-  //             status: file.status,
-  //           })
-  //         ),
-  //         uploadPACOrBrandPACFileName:
-  //           formValues.uploadPACOrBrandPACFileName?.map((file) => ({
-  //             uid: file.uid,
-  //             name: file.name,
-  //             status: file.status,
-  //           })),
-  //       };
-  //       localStorage.setItem("draftFormData", JSON.stringify(sanitizedValues));
-  //       setShowDraftSavedModal(true);
-  //     } catch (error) {
-  //       message.error("Failed to save draft");
-  //       console.error("Draft save error:", error);
-  //     }
-  //   };
-
-  const hasPacMaterial = (lineItems) => {
-    return (lineItems || []).some(
-      (item) => String(item?.modeOfProcurement).toLowerCase() === "brand pac"
-    );
-  };
   const PrintableContent = forwardRef(({ children }, ref) => (
     <div ref={ref} className="printable-content">
-      {/* <Heading title={"Indent Creation"} /> */}
       {children}
     </div>
   ));
@@ -230,8 +299,15 @@ const Form1 = () => {
       }
 
       const responseData = data.responseData;
+      
+      // Set indent type from response
+      if (responseData.indentType) {
+        setIndentType(responseData.indentType);
+      }
+      if (responseData.materialCategoryType) {
+        setMaterialCategoryType(responseData.materialCategoryType);
+      }
 
-      // Ensure file upload fields are always an array
       const getFileList = (fileName) =>
         fileName ? [{ uid: "-1", name: fileName, status: "done" }] : [];
 
@@ -251,8 +327,6 @@ const Form1 = () => {
         estimatedRate: parseFloat(responseData.estimatedRate) || 0,
         periodOfRateContract: parseFloat(responseData.periodOfContract) || 0,
         singleOrMultipleJob: responseData.singleAndMultipleJob || "",
-
-        // ✅ Fix file uploads - Ensure they are arrays
         uploadingPriorApprovalsFileName: getFileList(
           responseData.uploadingPriorApprovalsFileName
         ),
@@ -263,8 +337,6 @@ const Form1 = () => {
         uploadPACOrBrandPAC: getFileList(
           responseData.uploadPACOrBrandPACFileName
         ),
-
-        // ✅ Ensure material details is an array
         lineItems: Array.isArray(responseData.materialDetails)
           ? responseData.materialDetails.map((item) => ({
               materialCode: item.materialCode || "",
@@ -281,9 +353,21 @@ const Form1 = () => {
               modeOfProcurement: item.modeOfProcurement || "",
             }))
           : [],
+        jobItems: Array.isArray(responseData.jobDetails)
+          ? responseData.jobDetails.map((item) => ({
+              jobCode: item.jobCode || "",
+              jobCategory: item.category || "",
+              jobSubcategory: item.subCategory || "",
+              jobDescription: item.jobDescription || "",
+              uom: item.uom || "",
+              briefDescription: item.briefDescription || "",
+              estimatedPrice: parseFloat(item.estimatedPrice) || 0,
+              currency: item.currency || "",
+              origin: item.origin || "",
+            }))
+          : [],
       };
 
-      // ✅ Update form fields safely
       form.setFieldsValue(formData);
       setPreBidRequired(formData.preBidMeetingRequired);
       setRateContractIndent(formData.rateContractIndent);
@@ -295,8 +379,6 @@ const Form1 = () => {
   };
 
   const normFile = (e) => {
-    // When uploading, an array of file objects is expected.
-    // If e is already an array, return it. Otherwise, return e.fileList.
     if (Array.isArray(e)) {
       return e;
     }
@@ -323,80 +405,20 @@ const Form1 = () => {
       if (!response.ok)
         throw new Error(data.responseStatus?.message || "Upload failed");
 
-      return data.responseData.fileName; // Server-generated filename
+      return data.responseData.fileName;
     } catch (error) {
       message.error(`${fieldName} upload failed: ${error.message}`);
       throw error;
     }
   };
-  const getFileViewUrl = (fileName) => {
-    return `http://103.181.158.220:8081/astro-service/file/view/Indent/${fileName}`;
-  };
 
-  // Update the handleSubmit function with these changes
+  // Handle submit
   const handleSubmit = async (values) => {
     setLoading(true);
-    const procurementModes = (values.lineItems || []).map(
-      (item) => item.modeOfProcurement
-    );
 
-    const allModesSame = procurementModes.every(
-      (mode) => mode === procurementModes[0]
-    );
-
-    if (!allModesSame) {
-      message.error("All items must have the same Mode of Procurement");
-      setLoading(false);
-      return;
-    }
-
-    const materialCodes = (values.lineItems || []).map(
-      (item) => item.materialCode
-    );
-    // const materialDescriptions = (values.lineItems || []).map(
-    //   (item) => item.materialDescription
-    // );
-
-    const isMaterialCodeUnique =
-      new Set(materialCodes).size === materialCodes.length;
-    // const isMaterialDescriptionUnique =
-    //   new Set(materialDescriptions).size === materialDescriptions.length;
-
-    if (!isMaterialCodeUnique) {
-      message.error("Material code must be unique for each item.");
-      setLoading(false);
-      return;
-    }
-    const descriptions = (values.lineItems || []).map(
-      (item) => materialDetailsMap[item.materialCode]?.description
-    );
-
-    const uniqueDescriptions = new Set(descriptions);
-    if (uniqueDescriptions.size !== descriptions.length) {
-      message.error("Material descriptions must be unique across items");
-      setLoading(false);
-      return;
-    }
     try {
-      // Check if any line item has Brand PAC and the file is missing
-      if (
-        hasPacMaterial() &&
-        (!values.uploadPACOrBrandPACFileName ||
-          values.uploadPACOrBrandPACFileName.length === 0)
-      ) {
-        Modal.error({
-          title: "Missing Brand PAC Document",
-          content:
-            "Brand PAC document is mandatory when any item uses Brand PAC procurement.",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Continue with file uploads and payload construction as before
       const uploadFiles = async (fileList, fieldName) => {
         if (!fileList || fileList.length === 0) return "";
-        // Upload all files and join filenames with commas
         const uploadedNames = await Promise.all(
           fileList.map((file) =>
             uploadFileToServer(file.originFileObj, fieldName)
@@ -410,14 +432,15 @@ const Form1 = () => {
         technicalSpecifications,
         draftEOIOrRFP,
         uploadPACOrBrandPAC,
-        buyBackDocuments
+        buyBackDocuments,
       ] = await Promise.all([
         uploadFiles(values.uploadingPriorApprovalsFileName, "Prior Approvals"),
         uploadFiles(values.technicalSpecificationsFileName, "Tender Documents"),
         uploadFiles(values.draftEOIOrRFPFileName, "EOI/RFP"),
         uploadFiles(values.uploadPACOrBrandPACFileName, "Brand PAC"),
-        uploadFiles(values.buyBackDocumentsFileName, "Buyback Documents")
+        uploadFiles(values.buyBackDocumentsFileName, "Buyback Documents"),
       ]);
+
       const preBidMeetingDate =
         values.preBidMeetingRequired && values.preBidMeetingDetails
           ? values.preBidMeetingDetails.format("DD/MM/YYYY")
@@ -427,40 +450,46 @@ const Form1 = () => {
         ? String(values.preBidMeetingLocation)
         : null;
 
-      // Process material details with enhanced validation
-      const materialDetails = (values.lineItems || []).map((item) => {
-        const quantity = Number(item.quantity) || 0;
-        const unitPrice = Number(item.unitPrice) || 0;
-        const totalPrice = quantity * unitPrice;
+      // Build payload based on indent type
+      let materialDetails = null;
+      let jobDetails = null;
 
-        if (isNaN(quantity) || quantity <= 0) {
-          throw new Error(`Invalid quantity for material ${item.materialCode}`);
-        }
+      if (indentType === "material") {
+        materialDetails = (values.lineItems || []).map((item) => {
+          const quantity = Number(item.quantity) || 0;
+          const unitPrice = Number(item.unitPrice) || 0;
 
-        return {
-          materialCode: String(item.materialCode) || null,
-          materialDescription: String(item.materialDescription) || null,
-          quantity: quantity,
-          unitPrice: unitPrice,
-          uom: String(item.uom) || null,
-          currency: String(item.currency) || null,
-          //   totalPrize: totalPrice,
-          budgetCode: String(item.budgetCode) || null,
-          materialCategory: String(item.materialCategory) || null,
-          materialSubCategory: String(item.materialSubcategory) || null,
-          //   materialAndJob: String(item.materialOrJobCodeUsedByDept) || null,
-          modeOfProcurement: String(item.modeOfProcurement) || null,
-          vendorNames: item.vendorNames || null,
-          // ? Array.isArray(item.vendorNames)
-          //   ? item.vendorNames.join(", ")
-          //   : String(item.vendorNames)
-          // : null,
-        };
-      });
+          return {
+            materialCode: String(item.materialCode) || null,
+            materialDescription: String(item.materialDescription) || null,
+            quantity: quantity,
+            unitPrice: unitPrice,
+            uom: String(item.uom) || null,
+            currency: String(item.currency) || null,
+            budgetCode: String(item.budgetCode) || null,
+            materialCategory: String(item.materialCategory) || null,
+            materialSubCategory: String(item.materialSubcategory) || null,
+            modeOfProcurement: String(item.modeOfProcurement) || null,
+            vendorNames: item.vendorNames || null,
+          };
+        });
+      } else if (indentType === "job") {
+        jobDetails = (values.jobItems || []).map((item) => {
+          return {
+            jobCode: String(item.jobCode) || null,
+            jobDescription: String(item.jobDescription) || null,
+            category: String(item.jobCategory) || null,
+            subCategory: String(item.jobSubcategory) || null,
+            uom: String(item.uom) || null,
+            briefDescription: String(item.briefDescription) || null,
+            estimatedPrice: Number(item.estimatedPrice) || 0,
+            currency: String(item.currency) || null,
+            origin: String(item.origin) || null,
+          };
+        });
+      }
 
-      // Build payload with proper type conversions
       const payload = {
-        // Rename form fields to match DTO
         indentorEmailAddress: values.indentorEmail || null,
         indentorMobileNo: values.indentorMobileNo || null,
         indentorName: values.indentorName || null,
@@ -469,15 +498,12 @@ const Form1 = () => {
         isPreBidMeetingRequired: values.preBidMeetingRequired,
         periodOfContract: values.periodOfRateContract || 0,
         singleAndMultipleJob: values.singleOrMultipleJob || null,
-
         reason: hasProprietaryItem ? values.reason : null,
         proprietaryJustification: hasProprietaryItem
           ? values.proprietaryJustification
           : null,
         quarter: values.quarter || null,
         purpose: values.purpose || null,
-
-        // Maintain existing fields that match
         createdBy: actionPerformer || 0,
         estimatedRate: values.estimatedRate || 0,
         fileType: "Indent",
@@ -487,31 +513,23 @@ const Form1 = () => {
         justification: values.justification || null,
         brandAndModel: values.brandAndModel || null,
         brandPac: values.brandPac || null,
-
-        // File handling
         draftEOIOrRFPFileName: draftEOIOrRFP || null,
         uploadPACOrBrandPACFileName: uploadPACOrBrandPAC || null,
         technicalSpecificationsFileName: technicalSpecifications || null,
         uploadingPriorApprovalsFileName: priorApprovalsFile || null,
         uploadBuyBackFileNames: buyBackDocuments || null,
         buyBack: values.buyBackOption || null,
-
-        // Material details adjustments
-        materialDetails: materialDetails.map((item) => ({
-          ...item,
-          // Remove totalPrize as it's not in DTO
-          vendorNames: item.vendorNames
-            ? Array.isArray(item.vendorNames)
-              ? item.vendorNames
-              : String(item.vendorNames)
-                  .split(",")
-                  .map((s) => s.trim())
-            : null,
-        })),
+        // Include indent type and material category type
+        indentType: indentType,
+        materialCategoryType: indentType === "material" ? materialCategoryType : null,
+        // Include appropriate details based on type
+        materialDetails: materialDetails,
+        jobDetails: jobDetails,
       };
-      delete payload.lineItems;
 
-      // Submit request with authentication headers
+      delete payload.lineItems;
+      delete payload.jobItems;
+
       const response = await fetch(
         "http://103.181.158.220:8081/astro-service/api/indents",
         {
@@ -526,16 +544,11 @@ const Form1 = () => {
       const responseData = await response.json();
 
       if (!response.ok || responseData.responseStatus.statusCode !== 0) {
-        const formattedData = {
-          ...responseData.responseData,
-          materialDetails: responseData.responseData.materialDetails || [],
-        };
         throw new Error(
           responseData.responseStatus?.message || "Submission failed"
         );
       }
 
-      // Show success modal with response data
       setGeneratedIndentId(responseData.responseData.indentId);
       form.setFieldsValue({ indentId: responseData.responseData.indentId });
       setShowSuccessModal(true);
@@ -588,46 +601,7 @@ const Form1 = () => {
     setIsBrandPac(e.target.checked);
   };
 
-  useEffect(() => {
-    const fetchMaterials = async () => {
-      try {
-        const response = await fetch(
-          "http://103.181.158.220:8081/astro-service/api/material-master"
-        );
-        const data = await response.json();
-
-        if (!data.responseData) throw new Error("Invalid material data");
-
-        // Create a proper material map
-        const materialMap = data.responseData.reduce(
-          (acc, material) => ({
-            ...acc,
-            [material.materialCode]: {
-              ...material,
-              materialDescription: material.description,
-              materialCategory: material.category,
-              materialSubCategory: material.subCategory,
-              currency: material.currency,
-              modeOfProcurement: material.modeOfProcurement,
-              unitPrice: material.unitPrice,
-              vendorNames: material.vendorNames,
-            },
-          }),
-          {}
-        );
-
-        setMaterialDetailsMap(materialMap);
-        setMaterialList(Object.keys(materialMap));
-      } catch (error) {
-        message.error("Failed to load materials");
-        console.error("Material fetch error:", error);
-      }
-    };
-
-    fetchMaterials();
-  }, []);
-
-  // ✅ When a material is selected, auto-fill the other fields
+  // Material selection handler
   const handleMaterialSelect = (index, materialCode) => {
     const materialData = materialDetailsMap[materialCode] || {};
     const lineItems = form.getFieldValue("lineItems") || [];
@@ -636,36 +610,19 @@ const Form1 = () => {
     updatedItems[index] = {
       ...updatedItems[index],
       materialCode: materialCode,
-      materialDescription: materialData.description || "", // Match API field
-      materialCategory: materialData.category || "", // Match API field
-      materialSubcategory: materialData.subCategory || "", // Match API field
+      materialDescription: materialData.description || "",
+      materialCategory: materialData.category || "",
+      materialSubcategory: materialData.subCategory || "",
       uom: materialData.uom || "",
       currency: materialData.currency || "",
       unitPrice: materialData.unitPrice || 0,
       modeOfProcurement: materialData.modeOfProcurement
-        ? materialData.modeOfProcurement.trim().toUpperCase() // Normalize to uppercase
+        ? materialData.modeOfProcurement.trim().toUpperCase()
         : "",
       vendorNames: (materialData.vendorNames || []).join(", "),
     };
 
     form.setFieldsValue({ lineItems: updatedItems });
-
-        // Check if any material has Proprietary/Single Tender mode
-        const hasProprietaryMode = updatedItems.some(
-          item => item.modeOfProcurement === "Proprietary/Single Tender"
-        );
-    
-        // // If no proprietary items, reset the proprietary fields
-        // if (!hasProprietaryMode) {
-        //   form.setFieldsValue({
-        //     reason: "",
-        //     proprietaryJustification: "",
-        //     vendorNames: ""
-        //   });
-        //   setHasProprietaryItem(false);
-        // } else {
-        //   setHasProprietaryItem(true);
-        // }
 
     // Category validation
     const categories = updatedItems
@@ -681,7 +638,7 @@ const Form1 = () => {
       message.error("All materials must be of the same category.");
       updatedItems[index] = {
         ...updatedItems[index],
-        materialCode: "", // Fixed syntax error
+        materialCode: "",
         materialDescription: "",
         materialCategory: "",
         materialSubcategory: "",
@@ -699,25 +656,37 @@ const Form1 = () => {
         },
       ]);
     }
-
-    // const propPresent = checkForProprietaryItems(updatedItems);
-    // setHasProprietaryItem(propPresent);
   };
 
-  // 
-
-  // Add this handler in Form1
   const handleMaterialDescriptionSelect = (index, materialCode) => {
-    handleMaterialSelect(index, materialCode); // Reuse the same handler
+    handleMaterialSelect(index, materialCode);
   };
 
-  const checkForProprietaryItems = (lineItems) => {
-    if (!lineItems) return false;
-    return lineItems.some(
-      (item) => item.modeOfProcurement === "Proprietary/Single Tender"
-    );
+  // Handle indent type change
+  const handleIndentTypeChange = (e) => {
+    const newType = e.target.value;
+    setIndentType(newType);
+
+    if (newType === "job") {
+      setMaterialCategoryType("all");
+    }
+
+    // Reset line items
+    if (newType === "material") {
+      form.setFieldsValue({ lineItems: [{}], jobItems: [] });
+    } else {
+      form.setFieldsValue({ lineItems: [], jobItems: [{}] });
+    }
   };
 
+  // Handle material category type change
+  const handleMaterialCategoryTypeChange = (e) => {
+    const newCategoryType = e.target.value;
+    setMaterialCategoryType(newCategoryType);
+    form.setFieldsValue({ lineItems: [{}] });
+  };
+
+  // Set initial values
   useEffect(() => {
     form.setFieldsValue({
       indentorEmail: email,
@@ -725,24 +694,26 @@ const Form1 = () => {
       indentorName: userName,
     });
   }, []);
+
   const { vendorMaster } = useSelector((state) => state.masters);
   const vendorMasterMod = vendorMaster?.map((vendor) => ({
     label: vendor.vendorName,
     value: vendor.vendorName,
   }));
+
+  // Get filtered material list based on category type
+  const filteredMaterialList = getFilteredMaterialList();
+
   return (
     <PrintableContent ref={printRef}>
       <FormContainer>
-        {/* <div className="form-container"> */}
-        <Heading title={"Indent Creationaa"} />
+        <Heading title={"Indent Creation"} />
+
+        {/* Search Section */}
         <Row justify="end">
           <Col>
             <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
-              <Form.Item
-                label="Indent ID"
-                name="indentId"
-                //   rules={[{ required: true, message: "Indentor ID is required" }]}
-              >
+              <Form.Item label="Indent ID" name="indentId">
                 <Space>
                   <Input placeholder="Enter Indent ID" disabled />
                   <Button type="primary" onClick={handleSearch}>
@@ -753,6 +724,7 @@ const Form1 = () => {
             </Form>
           </Col>
         </Row>
+
         <Form
           form={form}
           layout="vertical"
@@ -764,12 +736,65 @@ const Form1 = () => {
           initialValues={{
             indentId: generatedIndentId || "",
             lineItems: [{}],
+            jobItems: [{}],
             preBidMeetingRequired: false,
             rateContractIndent: false,
-            consigneeLocation: "Bangalore", // Default value that matches one of the options
+            consigneeLocation: "Bangalore",
           }}
           ref={printRef}
         >
+          {/* Indentor Details Section with Inline Toggle Buttons */}
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: "center",
+            marginBottom: "16px",
+            flexWrap: "wrap",
+            gap: "12px"
+          }}>
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#333" }}>
+              Indentor Details
+            </h3>
+            
+            {/* Sleek Toggle Buttons */}
+            <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+              {/* Indent Type Toggle */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "13px", color: "#666", fontWeight: 500 }}>Type:</span>
+                <Radio.Group
+                  value={indentType}
+                  onChange={handleIndentTypeChange}
+                  size="small"
+                  buttonStyle="solid"
+                >
+                  <Radio.Button value="material" style={{ fontSize: "12px" }}>
+                    Material
+                  </Radio.Button>
+                  <Radio.Button value="job" style={{ fontSize: "12px" }}>
+                    Job/Service
+                  </Radio.Button>
+                </Radio.Group>
+              </div>
+
+              {/* Material Category Toggle - Only show for material indent */}
+              {indentType === "material" && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "13px", color: "#666", fontWeight: 500 }}>Category:</span>
+                  <Radio.Group
+                    value={materialCategoryType}
+                    onChange={handleMaterialCategoryTypeChange}
+                    size="small"
+                    buttonStyle="solid"
+                  >
+                    <Radio.Button value="all" style={{ fontSize: "12px" }}>All</Radio.Button>
+                    <Radio.Button value="computer" style={{ fontSize: "12px" }}>Computer</Radio.Button>
+                    <Radio.Button value="non-computer" style={{ fontSize: "12px" }}>Non-Computer</Radio.Button>
+                  </Radio.Group>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="form-section">
             <Form.Item
               label="Indentor Name"
@@ -797,7 +822,7 @@ const Form1 = () => {
             <Form.Item
               label="Indentor Email"
               name="indentorEmail"
-              rules={[{ required: true, message: "Indentor name is required" }]}
+              rules={[{ required: true, message: "Indentor email is required" }]}
             >
               <Input value="Auto-populated" />
             </Form.Item>
@@ -827,56 +852,219 @@ const Form1 = () => {
               valuePropName="fileList"
               getValueFromEvent={normFile}
             >
-              <Upload
-                beforeUpload={() => false}
-                //   customRequest={createUploadHandler("Prior Approvals")}
-                //   onChange={({ file }) => {
-                //     if (file.status === "done") {
-                //       form.setFieldsValue({
-                //         uploadingPriorApprovalsFileName: [
-                //           {
-                //             uid: file.uid,
-                //             name: file.response.fileName,
-                //             status: "done",
-                //           },
-                //         ],
-                //       });
-                //     }
-                //   }}
-              >
+              <Upload beforeUpload={() => false}>
                 <Button icon={<UploadOutlined />}>Upload File</Button>
               </Upload>
-              {/* <div className="file-links">
-                {form
-                    .getFieldValue("uploadingPriorApprovalsFileName")
-                    ?.map((file) => (
-                    <a
-                        key={file.uid}
-                        href={`http://103.181.158.220:8081/astro-service/file/view/Indent/${file.name}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        {file.name} (View)
-                    </a>
-                    ))}
-                </div> */}
             </Form.Item>
           </div>
 
-          <div className="print-section">
-            <LineItem
-              setHasProprietaryItem={setHasProprietaryItem}
-              form={form}
-              materialList={materialList}
-              projects={projects}
-              materialDetailsMap={materialDetailsMap}
-              calculateTotalPrice={calculateTotalPrice}
-              handleMaterialSelect={handleMaterialSelect}
-              handlePriceCalculation={handlePriceCalculation}
-              handleMaterialDescriptionSelect={handleMaterialDescriptionSelect}
-            />
-          </div>
+          {/* Conditional rendering based on Indent Type */}
+          {indentType === "material" ? (
+            /* Material Details Section */
+            <div className="print-section">
+              <LineItem
+                setHasProprietaryItem={setHasProprietaryItem}
+                form={form}
+                materialList={filteredMaterialList}
+                projects={projects}
+                materialDetailsMap={materialDetailsMap}
+                calculateTotalPrice={calculateTotalPrice}
+                handleMaterialSelect={handleMaterialSelect}
+                handlePriceCalculation={handlePriceCalculation}
+                handleMaterialDescriptionSelect={handleMaterialDescriptionSelect}
+              />
+            </div>
+          ) : (
+            /* Job Details Section */
+            <>
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                alignItems: "center",
+                marginBottom: "12px",
+                marginTop: "16px"
+              }}>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#333" }}>
+                  Job Details
+                </h3>
+                <Button
+                  type="dashed"
+                  size="small"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    const jobItems = form.getFieldValue("jobItems") || [];
+                    form.setFieldsValue({ jobItems: [...jobItems, {}] });
+                  }}
+                >
+                  Add Job
+                </Button>
+              </div>
 
+              <Form.List name="jobItems">
+                {(fields, { add, remove }) => (
+                  <>
+                    {fields.map(({ key, name, ...restField }, index) => (
+                      <div
+                        key={key}
+                        style={{
+                          border: "1px solid #d9d9d9",
+                          borderRadius: "6px",
+                          padding: "16px",
+                          marginBottom: "16px",
+                          backgroundColor: "#fafafa",
+                          position: "relative",
+                        }}
+                      >
+                        {fields.length > 1 && (
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => remove(name)}
+                            style={{
+                              position: "absolute",
+                              top: "8px",
+                              right: "8px",
+                            }}
+                          />
+                        )}
+
+                        {/* Row 1: Job Code, Job Category, Job Subcategory */}
+                        <Row gutter={16}>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "jobCode"]}
+                              label="Job Code"
+                            >
+                              <Input placeholder="Enter Job Code" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "jobCategory"]}
+                              label={<span><span style={{ color: "red" }}>*</span> Job Category</span>}
+                              rules={[{ required: true, message: "Select job category" }]}
+                            >
+                              <Select placeholder="Select Job Category">
+                                {jobCategoryOptions.map((opt) => (
+                                  <Option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </Option>
+                                ))}
+                              </Select>
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "jobSubcategory"]}
+                              label={<span><span style={{ color: "red" }}>*</span> Job Subcategory</span>}
+                              rules={[{ required: true, message: "Select job subcategory" }]}
+                            >
+                              <Select placeholder="Select Job Subcategory">
+                                {jobSubcategoryOptions.map((opt) => (
+                                  <Option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </Option>
+                                ))}
+                              </Select>
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        {/* Row 2: Job Description, UOM, Brief Description */}
+                        <Row gutter={16}>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "jobDescription"]}
+                              label={<span><span style={{ color: "red" }}>*</span> Job Description</span>}
+                              rules={[{ required: true, message: "Enter job description" }]}
+                            >
+                              <Input placeholder="Enter Job Description" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "uom"]}
+                              label={<span><span style={{ color: "red" }}>*</span> UOM</span>}
+                              rules={[{ required: true, message: "Select UOM" }]}
+                            >
+                              <Select placeholder="Select Unit of Measure">
+                                {uomOptions.map((opt) => (
+                                  <Option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </Option>
+                                ))}
+                              </Select>
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "briefDescription"]}
+                              label={<span><span style={{ color: "red" }}>*</span> Brief Description of Job</span>}
+                              rules={[{ required: true, message: "Enter brief description" }]}
+                            >
+                              <Input placeholder="Enter Brief Description" />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        {/* Row 3: Estimated Price, Currency, Origin */}
+                        <Row gutter={16}>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "estimatedPrice"]}
+                              label={<span><span style={{ color: "red" }}>*</span> Estimated Price</span>}
+                              rules={[{ required: true, message: "Enter estimated price" }]}
+                            >
+                              <Input type="number" placeholder="Enter Estimated Price" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "currency"]}
+                              label={<span><span style={{ color: "red" }}>*</span> Currency</span>}
+                              rules={[{ required: true, message: "Select currency" }]}
+                            >
+                              <Select placeholder="Select Currency">
+                                {currencyOptions.map((opt) => (
+                                  <Option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </Option>
+                                ))}
+                              </Select>
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "origin"]}
+                              label={<span><span style={{ color: "red" }}>*</span> Origin</span>}
+                              rules={[{ required: true, message: "Select origin" }]}
+                            >
+                              <Radio.Group>
+                                <Radio value="Indigenous">Indigenous</Radio>
+                                <Radio value="Imported">Imported</Radio>
+                              </Radio.Group>
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </Form.List>
+            </>
+          )}
+
+          {/* Project Section */}
           <div className="form-section">
             <Form.Item name="projectName" label="Project Name">
               <Select placeholder="Select project" loading={loading} allowClear>
@@ -890,21 +1078,12 @@ const Form1 = () => {
                 ))}
               </Select>
             </Form.Item>
-            {/* <Form.Item
-              label="Purpose"
-              name="purpose"
-              rules={[{ required: true, message: "Purpose is required" }]}
-            >
-              <Input placeholder="Enter purpose" />
-            </Form.Item> */}
+
             <Form.Item
               label="Upload Technical Specifications"
               name="technicalSpecificationsFileName"
               valuePropName="fileList"
               getValueFromEvent={normFile}
-              // rules={[
-              //   { required: true, message: "Technical specifications are required" },
-              // ]}
             >
               <Upload beforeUpload={() => false}>
                 <Button icon={<UploadOutlined />}>
@@ -914,6 +1093,7 @@ const Form1 = () => {
             </Form.Item>
           </div>
 
+          {/* Pre-bid Meeting Section */}
           <Form.Item name="preBidMeetingRequired" valuePropName="checked">
             <Checkbox onChange={handleCheckboxChange}>
               Pre-bid Meeting Required
@@ -968,10 +1148,9 @@ const Form1 = () => {
             )}
           </div>
 
+          {/* Buy Back Section */}
           <Form.Item name="buyBackOption" valuePropName="checked">
-            <Checkbox onChange={handleCheckboxChange4}>
-              Buy Back
-            </Checkbox>
+            <Checkbox onChange={handleCheckboxChange4}>Buy Back</Checkbox>
           </Form.Item>
           {buyBackOption && (
             <Form.Item
@@ -988,6 +1167,7 @@ const Form1 = () => {
             </Form.Item>
           )}
 
+          {/* Rate Contract Section */}
           <Form.Item name="rateContractIndent" valuePropName="checked">
             <Checkbox onChange={handleCheckboxChange2}>
               Is it a rate contract indent
@@ -1034,7 +1214,7 @@ const Form1 = () => {
                       },
                     ]}
                   >
-                    <Select placeholder="Select Material Code">
+                    <Select placeholder="Select">
                       <Option value="Single">Single</Option>
                       <Option value="Multiple">Multiple</Option>
                     </Select>
@@ -1044,7 +1224,8 @@ const Form1 = () => {
             )}
           </div>
 
-          {hasProprietaryItem && (
+          {/* Proprietary Section - Only for Material Indent */}
+          {indentType === "material" && hasProprietaryItem && (
             <>
               <Form.Item
                 name="reason"
@@ -1052,29 +1233,11 @@ const Form1 = () => {
                 rules={[{ required: true, message: "Please select a reason" }]}
               >
                 <Select placeholder="Select reason">
-                  <Option
-                    value="It is in the knowledge of the user department that only a
-                        particular firm is the manufacturer of the required goods"
-                  >
-                    It is in the knowledge of the user department that only a
-                    particular firm is the manufacturer of the required goods
-                  </Option>
-                  <Option
-                    value="In a case of emergency, the required goods are necessarily
-                        to be purchased from a particular source"
-                  >
-                    In a case of emergency, the required goods are necessarily
-                    to be purchased from a particular source
-                  </Option>
-                  <Option
-                    value="For standardization of machinery or spare parts to be
-                        compatible to the existing sets of equipment, the required
-                        item is to be purchased only from a selected firm"
-                  >
-                    For standardization of machinery or spare parts to be
-                    compatible to the existing sets of equipment, the required
-                    item is to be purchased only from a selected firm
-                  </Option>
+                  {reasonDropdownOptions.map((opt) => (
+                    <Option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </Option>
+                  ))}
                 </Select>
               </Form.Item>
 
@@ -1091,27 +1254,11 @@ const Form1 = () => {
                     placeholder="Enter detailed justification for proprietary procurement"
                   />
                 </Form.Item>
-                {/* <Form.Item
-                  name="vendorNames"
-                  label="Vendor Name"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Vendor name is required",
-                    },
-                  ]}
-                >
-                  <Select placeholder="Select vendor">
-                    {vendorMasterMod?.map((vendor) => (
-                      <Option key={vendor.value} value={vendor.value}>
-                        {vendor.label}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item> */}
               </div>
             </>
           )}
+
+          {/* Quarter and Purpose Section */}
           <div className="grid grid-cols-2 gap-x-8">
             <Form.Item name="quarter" label="Quarter">
               <Select options={quarterDropdownOptions} />
@@ -1122,23 +1269,23 @@ const Form1 = () => {
             </Form.Item>
           </div>
 
+          {/* Draft EOI/RFP Upload */}
           <div className="form-section">
             <Form.Item
               label="Upload draft EOI or RFP"
               name="draftEOIOrRFPFileName"
               valuePropName="fileList"
               getValueFromEvent={normFile}
-              // rules={[{ required: true, message: "GOI or RFP is required" }]}
             >
               <Upload beforeUpload={() => false}>
                 <Button icon={<UploadOutlined />}>Upload EOI or RFP</Button>
               </Upload>
             </Form.Item>
           </div>
+
+          {/* Brand PAC Section */}
           <Form.Item name="brandPac" valuePropName="checked">
-            <Checkbox onChange={handleCheckboxChange3}>
-              Is it a brand PAC
-            </Checkbox>
+            <Checkbox onChange={handleCheckboxChange3}>Is it a brand PAC</Checkbox>
           </Form.Item>
 
           <div className="form-section">
@@ -1147,16 +1294,8 @@ const Form1 = () => {
                 <Form.Item
                   label="Brand PAC Approval"
                   name="uploadPACOrBrandPACFileName"
-                  dependencies={["lineItems"]}
                   valuePropName="fileList"
                   getValueFromEvent={normFile}
-                  // rules={[
-                  // ({ getFieldValue }) => ({
-                  //     required: hasPacMaterial(getFieldValue("lineItems")),
-                  //     message:
-                  //     "PAC/Brand PAC document is required when any item uses Brand PAC procurement",
-                  // }),
-                  // ]}
                 >
                   <Upload beforeUpload={() => false}>
                     <Button icon={<UploadOutlined />}>Upload Brand PAC</Button>
@@ -1166,9 +1305,7 @@ const Form1 = () => {
                   <Input />
                 </Form.Item>
                 <Form.Item
-                  label="It is known that as per the Rule 144 of GFR, where in the Fundamental principles of public buying states that the description of the subject matter of procurement to the extent practicable should not indicate a requirement for a particular trade mark, trade name or brand.
-
-    However in the subject requirement, it is required to prefer the above mentioned brand for the following reasons:"
+                  label="It is known that as per the Rule 144 of GFR..."
                   name="justification"
                 >
                   <Input placeholder="Enter Declaration" />
@@ -1177,6 +1314,7 @@ const Form1 = () => {
             )}
           </div>
 
+          {/* Action Buttons */}
           <Form.Item>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <Button type="default" htmlType="reset">
@@ -1198,7 +1336,8 @@ const Form1 = () => {
               </Button>
             </div>
           </Form.Item>
-          {/* Add this near the end of your component's JSX */}
+
+          {/* Success Modal */}
           <Modal
             open={showSuccessModal}
             onOk={() => setShowSuccessModal(false)}
@@ -1221,6 +1360,8 @@ const Form1 = () => {
               <p className="text-gray-600">Indent ID: {generatedIndentId}</p>
             </div>
           </Modal>
+
+          {/* Draft Saved Modal */}
           <Modal
             open={showDraftSavedModal}
             onCancel={() => setShowDraftSavedModal(false)}
@@ -1240,7 +1381,6 @@ const Form1 = () => {
             </div>
           </Modal>
         </Form>
-        {/* </div> */}
       </FormContainer>
     </PrintableContent>
   );

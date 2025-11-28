@@ -300,15 +300,17 @@ const QueueRequest = ({ workflowId, requestType }) => {
   }, [auth.role, workflowId]);
 
   // Fetch employees for assignment
-  const fetchEmployees = () => {
-    if (employees.length === 0) {
-      setLoadingEmployees(true);
-      axios
-        .get("/api/employee-department-master/employeeName")
-        .then((res) => setEmployees(res.data.responseData))
-        .finally(() => setLoadingEmployees(false));
-    }
-  };
+const fetchEmployees = () => {
+  if (employees.length === 0) {
+    setLoadingEmployees(true);
+    axios
+      .get("/api/employee-department-master/employeeName/byDepartment", {
+        params: { department: "Purchase" }
+      })
+      .then((res) => setEmployees(res.data.responseData))
+      .finally(() => setLoadingEmployees(false));
+  }
+};
 
   // Handle employee assignment
   const handleAssign = (indentId) => {
