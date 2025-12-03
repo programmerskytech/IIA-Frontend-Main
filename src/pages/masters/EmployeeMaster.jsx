@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Form, Button, Select, message, Modal, Input, Tag, Switch, Table, Tabs } from "antd";
-import { ReloadOutlined, SaveOutlined, SendOutlined, CheckOutlined, CloseOutlined, EditOutlined } from "@ant-design/icons";
+import { Form, Button, Select, message, Modal, Input, Tag, Switch, Table, Tabs, Checkbox, Divider } from "antd";
+import { ReloadOutlined, SaveOutlined, SendOutlined, CheckOutlined, CloseOutlined, EditOutlined, UserAddOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 import axios from "axios";
@@ -8,7 +8,7 @@ import FormContainer from "../../components/DKG_FormContainer";
 import FormInputItem from "../../components/DKG_FormInputItem";
 import Heading from "../../components/DKG_Heading";
 
-const { TextArea } = Input;
+const { TextArea, Password } = Input;
 const { TabPane } = Tabs;
 
 const EmployeeMaster = () => {
@@ -24,19 +24,21 @@ const EmployeeMaster = () => {
   const [employeeList, setEmployeeList] = useState([]);
   const [designationList, setDesignationList] = useState([]);
   const [departmentList, setDepartmentList] = useState([]);
+  const [rolesList, setRolesList] = useState([]);
   const [currentStatus, setCurrentStatus] = useState("Active");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [drafts, setDrafts] = useState([]);
   const [activeTab, setActiveTab] = useState("form");
+  const [createUserAccount, setCreateUserAccount] = useState(false);
+  const [userAlreadyExists, setUserAlreadyExists] = useState(false);
 
-  // Fetch designations, departments, and drafts on component mount
   useEffect(() => {
     fetchDesignations();
     fetchDepartments();
+    fetchRoles();
     fetchDrafts();
   }, []);
 
-  // Detect Edit Mode & fetch details
   useEffect(() => {
     if (employeeId) {
       setIsEditMode(true);
@@ -78,6 +80,24 @@ const EmployeeMaster = () => {
     } catch (error) {
       console.error("Error fetching departments:", error);
       message.error("Failed to load departments");
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const response = await axios.get("/api/employee-department-master/roles");
+      const data = response.data?.responseData;
+      if (Array.isArray(data)) {
+        setRolesList(
+          data.map((item) => ({
+            label: item.roleName,
+            value: item.roleName,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      message.error("Failed to load roles");
     }
   };
 
@@ -138,10 +158,27 @@ const EmployeeMaster = () => {
         setCurrentStatus(res.status);
         setSelectedEmployeeId(res.employeeId);
         setIsDraftMode(res.isDraft === true);
+        
+        // Check if user already exists for this employee
+        checkUserExists(res.employeeId);
       }
     } catch (error) {
       message.error("Failed to load employee details");
       console.error(error);
+    }
+  };
+
+  const checkUserExists = async (empId) => {
+    try {
+      const response = await axios.get(`/api/employee-department-master/user-exists/${empId}`);
+      const exists = response.data?.responseData?.exists;
+      setUserAlreadyExists(exists);
+      if(exists) {
+        setCreateUserAccount(false);
+        message.info("User account already exists for this employee");
+      }
+    } catch (error) {
+      console.error("Error checking user existence:", error);
     }
   };
 
@@ -196,7 +233,18 @@ const EmployeeMaster = () => {
     return Promise.resolve();
   };
 
-  // Save as Draft
+  const validatePassword = (_, value) => {
+    if(createUserAccount) {
+      if (!value) {
+        return Promise.reject(new Error("Password is required when creating user account"));
+      }
+      if (value.length < 8) {
+        return Promise.reject(new Error("Password must be at least 8 characters"));
+      }
+    }
+    return Promise.resolve();
+  };
+
   const handleSaveDraft = async () => {
     setDraftLoading(true);
     try {
@@ -218,15 +266,12 @@ const EmployeeMaster = () => {
 
       let response;
       if (selectedEmployeeId && isDraftMode) {
-        // Update existing draft
         response = await axios.put(`/api/employee-department-master/draft/${selectedEmployeeId}`, payload);
       } else if (selectedEmployeeId && !isDraftMode) {
-        // Cannot save submitted employee as draft
         message.warning("Cannot save a submitted employee as draft. Use Update instead.");
         setDraftLoading(false);
         return;
       } else {
-        // Create new draft
         response = await axios.post("/api/employee-department-master/draft", payload);
       }
 
@@ -236,7 +281,7 @@ const EmployeeMaster = () => {
         setSelectedEmployeeId(data.employeeId);
         setIsDraftMode(true);
         form.setFieldsValue({ employeeId: data.employeeId });
-        fetchDrafts(); // Refresh drafts list
+        fetchDrafts();
       }
     } catch (error) {
       const errMsg = error.response?.data?.responseStatus?.message || error.message;
@@ -246,7 +291,6 @@ const EmployeeMaster = () => {
     }
   };
 
-  // Load draft into form
   const loadDraft = async (record) => {
     try {
       const response = await axios.get(`/api/employee-department-master/${record.employeeId}`);
@@ -275,7 +319,6 @@ const EmployeeMaster = () => {
     }
   };
 
-  // Submit (for both new, edit, and draft submission)
   const onFinish = async (values) => {
     setLoading(true);
     try {
@@ -290,30 +333,36 @@ const EmployeeMaster = () => {
         status: values.status || "Active",
         createdBy: String(auth.userId),
         updatedBy: String(auth.userId),
+        createUserAccount: createUserAccount,
+        userName: values.userName || values.employeeName,
+        userPassword: values.userPassword,
+        userRoles: values.userRoles || [],
       };
 
       const currentEmployeeId = values.employeeId || employeeId || selectedEmployeeId;
 
       let response;
       if (currentEmployeeId && isDraftMode) {
-        // Submit draft
         response = await axios.put(`/api/employee-department-master/draft/${currentEmployeeId}/submit`, payload);
       } else if (currentEmployeeId) {
-        // Update existing employee
         response = await axios.put(`/api/employee-department-master/${currentEmployeeId}`, payload);
       } else {
-        // Create new employee
-        response = await axios.post("/api/employee-department-master", payload);
+        // Create with user account if checkbox is checked
+        if(createUserAccount) {
+          response = await axios.post("/api/employee-department-master/with-user", payload);
+        } else {
+          response = await axios.post("/api/employee-department-master", payload);
+        }
       }
 
       const data = response.data?.responseData;
       if (data) {
         setCreatedEmployee(data);
         const actionText = isDraftMode ? "submitted" : (isEditMode ? "updated" : "created");
-        message.success(`Employee ${actionText} successfully!`);
+        message.success(`Employee ${actionText} successfully!${createUserAccount ? ' User account created.' : ''}`);
         setShowPopup(true);
         setIsDraftMode(false);
-        fetchDrafts(); // Refresh drafts list
+        fetchDrafts();
       } else {
         throw new Error("Invalid response from server");
       }
@@ -332,9 +381,10 @@ const EmployeeMaster = () => {
     setSelectedEmployeeId(null);
     setCurrentStatus("Active");
     setEmployeeList([]);
+    setCreateUserAccount(false);
+    setUserAlreadyExists(false);
   };
 
-  // Drafts table columns
   const draftColumns = [
     {
       title: "Employee ID",
@@ -389,7 +439,6 @@ const EmployeeMaster = () => {
         <TabPane tab="Employee Form" key="form">
           <Form form={form} layout="vertical" onFinish={onFinish}>
             
-            {/* Draft Indicator */}
             {isDraftMode && (
               <div
                 style={{
@@ -405,7 +454,6 @@ const EmployeeMaster = () => {
               </div>
             )}
 
-            {/* Search Section */}
             <div className="form-section">
               <Form.Item label="Search Employee">
                 <Select
@@ -430,7 +478,6 @@ const EmployeeMaster = () => {
               </Form.Item>
             </div>
 
-            {/* Status Section - Only visible in Edit Mode and not draft */}
             {isEditMode && selectedEmployeeId && !isDraftMode && (
               <div
                 style={{
@@ -469,7 +516,6 @@ const EmployeeMaster = () => {
               </div>
             )}
 
-            {/* Basic Information Section */}
             <div
               style={{
                 background: "#fafafa",
@@ -543,7 +589,6 @@ const EmployeeMaster = () => {
               </div>
             </div>
 
-            {/* Contact Details Section */}
             <div
               style={{
                 background: "#fafafa",
@@ -600,12 +645,122 @@ const EmployeeMaster = () => {
               </div>
             </div>
 
-            {/* Hidden Status Field */}
+            {/* User Account Creation Section */}
+            {!isEditMode && !isDraftMode && (
+              <div
+                style={{
+                  background: "#f0f5ff",
+                  padding: "20px",
+                  borderRadius: "8px",
+                  marginBottom: "20px",
+                  border: "1px solid #adc6ff",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", marginBottom: "15px" }}>
+                  <Checkbox
+                    checked={createUserAccount}
+                    onChange={(e) => setCreateUserAccount(e.target.checked)}
+                  >
+                    <span style={{ fontWeight: "bold", fontSize: "16px" }}>
+                      <UserAddOutlined style={{ marginRight: "8px" }} />
+                      Create User Account
+                    </span>
+                  </Checkbox>
+                </div>
+
+                {createUserAccount && (
+                  <>
+                    <Divider style={{ margin: "15px 0" }} />
+                    <h3 style={{ marginBottom: "15px", color: "#1890ff" }}>
+                      User Account Details
+                    </h3>
+                    
+                    <div className="form-section">
+                      <Form.Item
+                        label="Username"
+                        name="userName"
+                        rules={[
+                          { required: createUserAccount, message: "Username is required" }
+                        ]}
+                        extra="Will use employee name if not provided"
+                      >
+                        <Input placeholder="Enter username (optional)" />
+                      </Form.Item>
+
+                      <Form.Item
+                        label="Password"
+                        name="userPassword"
+                        rules={[
+                          { validator: validatePassword }
+                        ]}
+                        extra="Minimum 8 characters"
+                      >
+                        <Password 
+                          placeholder="Enter password"
+                          visibilityToggle
+                        />
+                      </Form.Item>
+                    </div>
+
+                    <Form.Item
+                      label="Assign Roles"
+                      name="userRoles"
+                      rules={[
+                        { required: createUserAccount, message: "Please select at least one role" }
+                      ]}
+                    >
+                      <Select
+                        mode="multiple"
+                        placeholder="Select roles for the user"
+                        options={rolesList}
+                        showSearch
+                        filterOption={(input, option) =>
+                          (option?.label ?? "")
+                            .toLowerCase()
+                            .includes(input.toLowerCase())
+                        }
+                      />
+                    </Form.Item>
+
+                    <div
+                      style={{
+                        background: "#fffbe6",
+                        border: "1px solid #ffe58f",
+                        padding: "10px",
+                        borderRadius: "4px",
+                        marginTop: "10px",
+                      }}
+                    >
+                      <small>
+                        ⚠️ <strong>Note:</strong> A login account will be created for this employee with the specified credentials.
+                        The password will be encrypted and stored securely.
+                      </small>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Show warning if user already exists when editing */}
+            {isEditMode && userAlreadyExists && (
+              <div
+                style={{
+                  background: "#fff1f0",
+                  border: "1px solid #ffccc7",
+                  padding: "15px",
+                  borderRadius: "8px",
+                  marginBottom: "20px",
+                }}
+              >
+                <Tag color="red">USER EXISTS</Tag>
+                <span>A user account already exists for this employee. User account creation is disabled.</span>
+              </div>
+            )}
+
             <Form.Item name="status" hidden>
               <Input />
             </Form.Item>
 
-            {/* Action Buttons */}
             <div
               style={{
                 display: "flex",
@@ -647,51 +802,93 @@ const EmployeeMaster = () => {
         </TabPane>
       </Tabs>
 
-      {/* Success Modal */}
-      <Modal
-        title={
-          isDraftMode ? "Draft Submitted Successfully" : (isEditMode ? "Employee Updated" : "Employee Created Successfully")
-        }
-        open={showPopup}
-        onOk={() => {
-          setShowPopup(false);
-          if (!isEditMode) {
-            handleReset();
-          }
-        }}
-        onCancel={() => setShowPopup(false)}
-        okText="OK"
-      >
-        {createdEmployee && (
-          <div>
-            <p>
-              {`Employee "${createdEmployee.employeeName}" (ID: ${createdEmployee.employeeId}) was ${
-                isDraftMode ? "submitted" : (isEditMode ? "updated" : "created")
-              } successfully.`}
+     <Modal
+  title={
+    isDraftMode ? "Draft Submitted Successfully" : (isEditMode ? "Employee Updated" : "Employee Created Successfully")
+  }
+  open={showPopup}
+  onOk={() => {
+    setShowPopup(false);
+    if (!isEditMode) {
+      handleReset();
+    }
+  }}
+  onCancel={() => setShowPopup(false)}
+  okText="OK"
+>
+  {createdEmployee && (
+    <div>
+      <p>
+        {`Employee "${createdEmployee.employeeName}" (Employee ID: ${createdEmployee.employeeId}) was ${
+          isDraftMode ? "submitted" : (isEditMode ? "updated" : "created")
+        } successfully.`}
+      </p>
+      {createUserAccount && createdEmployee.userId && (
+        <div
+          style={{
+            background: "#e6f7ff",
+            border: "1px solid #91d5ff",
+            padding: "15px",
+            borderRadius: "8px",
+            marginTop: "15px",
+            marginBottom: "10px",
+          }}
+        >
+          <p style={{ marginBottom: "10px", fontWeight: "bold", color: "#1890ff" }}>
+            ✓ User Account Created Successfully
+          </p>
+          <div style={{ 
+            background: "#fff", 
+            padding: "10px", 
+            borderRadius: "4px",
+            border: "1px solid #d9d9d9"
+          }}>
+            <p style={{ marginBottom: "5px" }}>
+              <strong>Login Credentials:</strong>
             </p>
-            <div style={{ marginTop: "10px" }}>
-              <p>
-                <strong>Status:</strong>{" "}
-                <Tag color={createdEmployee.status === "Active" ? "green" : "red"}>
-                  {createdEmployee.status}
-                </Tag>
-              </p>
-              <p>
-                <strong>Department:</strong> {createdEmployee.departmentName}
-              </p>
-              <p>
-                <strong>Designation:</strong> {createdEmployee.designation}
-              </p>
-              <p>
-                <strong>Phone:</strong> {createdEmployee.phoneNumber}
-              </p>
-              <p>
-                <strong>Email:</strong> {createdEmployee.emailAddress}
-              </p>
-            </div>
+            <p style={{ marginBottom: "5px", fontFamily: "monospace" }}>
+              <strong>User ID:</strong> <span style={{ color: "#cf1322" }}>{createdEmployee.userId}</span>
+            </p>
+            <p style={{ marginBottom: "0", fontFamily: "monospace" }}>
+              <strong>Password:</strong> <span style={{ color: "#666" }}>(as set by you)</span>
+            </p>
           </div>
+          <p style={{ marginTop: "10px", marginBottom: "0", fontSize: "12px", color: "#666" }}>
+            ⚠️ The employee should use <strong>User ID</strong> (not Employee ID) to login
+          </p>
+        </div>
+      )}
+      <div style={{ marginTop: "10px" }}>
+        <p>
+          <strong>Employee ID:</strong> {createdEmployee.employeeId}
+        </p>
+        {createdEmployee.userId && (
+          <p>
+            <strong>User ID:</strong> <span style={{ color: "#cf1322", fontFamily: "monospace" }}>{createdEmployee.userId}</span>
+          </p>
         )}
-      </Modal>
+        <p>
+          <strong>Status:</strong>{" "}
+          <Tag color={createdEmployee.status === "Active" ? "green" : "red"}>
+            {createdEmployee.status}
+          </Tag>
+        </p>
+        <p>
+          <strong>Department:</strong> {createdEmployee.departmentName}
+        </p>
+        <p>
+          <strong>Designation:</strong> {createdEmployee.designation}
+        </p>
+        <p>
+          <strong>Phone:</strong> {createdEmployee.phoneNumber}
+        </p>
+        <p>
+          <strong>Email:</strong> {createdEmployee.emailAddress}
+        </p>
+      </div>
+    </div>
+  )}
+</Modal>
     </FormContainer>
   );
 };

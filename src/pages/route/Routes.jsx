@@ -243,10 +243,49 @@ const soCreatorRoutes = (
   </>
 );
 
+// Add this BEFORE the generateRoutes function
+const adminRoutes = (
+  <>
+    {/* Masters */}
+    <Route path="/masters" element={<Master />} />
+    
+    {/* Procurement - ALL */}
+    <Route path="/procurement/indent/creation" element={<Indent1 />} />
+    <Route path="/procurement/indent/modification" element={<Form3 />} />
+    <Route path="/procurement/tender/request" element={<Tender />} />
+    <Route path="/procurement/tender/evaluation" element={<TenderEvaluator />} />
+    <Route path="/procurement/tender/gem" element={<TenderEvaluatorGem />} />
+    <Route path="/procurement/tender/Quotations" element={<Quotations />} />
+    <Route path="/procurement/purchaseOrder" element={<PO />} />
+    <Route path="/procurement/serviceOrder" element={<SO />} />
+    <Route path="/procurement/jobCreation" element={<JobCreation />} />
+    <Route path="/procurement/workCreation" element={<WorkCreation />} />
+    <Route path="/procurement/deliveryTracking" element={<Form10 />} />
+    
+    {/* Inventory - ALL */}
+    <Route path="/inventory/gprn" element={<GPRN />} />
+    <Route path="/inventory/goodsInspection" element={<GoodsInspection />} />
+    <Route path="/inventory/goodsReturn" element={<Grv />} />
+    <Route path="/inventory/goodsReceipt" element={<Grn />} />
+    <Route path="/inventory/assetMaster" element={<Asset />} />
+    <Route path="/inventory/goodsIssue" element={<Isn />} />
+    <Route path="/inventory/goodsTransfer" element={<Form17 />} />
+    <Route path="/inventory/materialDisposal" element={<AssetDisposal />} />
+    <Route path="/inventory/ForDisposalAssets" element={<ForDisposalAssets />} />
+    <Route path="/inventory/outward" element={<Ogp />} />
+    <Route path="/inventory/inward" element={<Igp />} />
+    <Route path="/inventory/demandIssue" element={<Form20 />} />
+  </>
+);
+
+// Now update the generateRoutes function
 const generateRoutes = (roleName) => {
   console.log("🔹 generateRoutes called with:", roleName);
 
   switch (roleName) {
+    case "Admin":  // ✅ ADD THIS CASE FIRST
+      console.log("➡ using adminRoutes - FULL ACCESS");
+      return adminRoutes;
     case "Indent Creator":
       console.log("➡ using indentCreatorRoutes");
       return indentCreatorRoutes;

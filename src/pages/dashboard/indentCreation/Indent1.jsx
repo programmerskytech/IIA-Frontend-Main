@@ -1,4 +1,4 @@
-import { Card, message, Select, Row, Col } from 'antd'
+import { Card, message, Select, Row, Col, Tag } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 import Heading from '../../../components/DKG_Heading'
@@ -13,6 +13,7 @@ import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 
 const { Option } = Select;
+
 // File upload configuration
 const MAX_FILE_SIZE_MB = 50;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -93,6 +94,9 @@ const Indent1 = () => {
     // Material Category Type State (Computer or Non-Computer)
     const [materialCategoryType, setMaterialCategoryType] = useState("computer");
 
+    // Job Codes Master State for Rate Contract dropdown
+    const [jobCodesMaster, setJobCodesMaster] = useState([]);
+
     const handleCancel = async (remarks) => {
         try {
             const payload = {
@@ -113,7 +117,8 @@ const Indent1 = () => {
                 projectName: "",
                 consignesLocation: "",
                 materialDetails: [{}],
-                jobDetails: [{}]
+                jobDetails: [{}],
+                rateContractJobCodes: [] // Reset job codes
             });
             setSearchDone(false);
             setIndentIdDropdown([]);
@@ -130,7 +135,8 @@ const Indent1 = () => {
         projectName: "",
         consignesLocation: "",
         materialDetails: [{}],
-        jobDetails: [{}]
+        jobDetails: [{}],
+        rateContractJobCodes: [] // NEW: Multiple job codes for rate contract
     })
 
     const { locationMaster, projectMaster, materialMaster, vendorMaster } = useSelector(state => state.masters)
@@ -210,12 +216,13 @@ const Indent1 = () => {
         }
     };
 
-    // Fetch Job Master Data
+    // Fetch Job Master Data (for both Job Indent and Rate Contract Job Codes dropdown)
     const fetchJobMaster = async () => {
         try {
             const { data } = await axios.get("/api/job-master");
             if (data?.responseData) {
                 setJobMasterState(data.responseData);
+                setJobCodesMaster(data.responseData); // Also populate for rate contract dropdown
             }
         } catch (error) {
             console.error("Error fetching job master:", error);
@@ -265,7 +272,15 @@ const Indent1 = () => {
         return materialMasterState;
     };
 
-    // Get job dropdown options
+    // Get job codes dropdown options for Rate Contract (multiple selection)
+    const getJobCodesDropdownOptions = () => {
+        return jobCodesMaster.map(job => ({
+            label: `${job.jobCode} - ${job.jobDescription}`,
+            value: job.jobCode
+        }));
+    };
+
+    // Get job dropdown options for Job Indent
     const getJobDropdownOptions = () => {
         return jobMasterState.map(job => ({
             label: `${job.jobCode} - ${job.jobDescription}`,
@@ -380,7 +395,7 @@ const Indent1 = () => {
         };
     };
 
-    // Job Details Input Fields
+    // Job Details Input Fields (for Job Indent type)
     const getJobInputFields = () => {
         return {
             heading: "Job/Service Details",
@@ -556,13 +571,13 @@ const Indent1 = () => {
         indentType === "material" ? getMaterialInputFields() : getJobInputFields(),
         {
             heading: (
-        <span>
-            Document Uploads 
-            <span style={{ color: '#ff4d4f', fontSize: '12px', fontWeight: 'normal', marginLeft: '10px' }}>
-                (Maximum upload limit: {MAX_FILE_SIZE_MB}MB per file)
-            </span>
-        </span>
-    ),
+                <span>
+                    Document Uploads 
+                    <span style={{ color: '#ff4d4f', fontSize: '12px', fontWeight: 'normal', marginLeft: '10px' }}>
+                        (Maximum upload limit: {MAX_FILE_SIZE_MB}MB per file)
+                    </span>
+                </span>
+            ),
             colCnt: 2,
             fieldList: [
                 {
@@ -705,6 +720,7 @@ const Indent1 = () => {
                     type: "checkbox",
                     label: "Is it a Rate Contract Indent",
                 },
+                // Rate Contract fields - UPDATED: replaced singleAndMultipleJob with rateContractJobCodes
                 ...(formData.isItARateContractIndent ? [
                     {
                         name: "estimatedRate",
@@ -719,14 +735,14 @@ const Indent1 = () => {
                         required: true,
                     },
                     {
-                        name: "singleAndMultipleJob",
-                        label: "Job Type",
-                        type: "select",
+                        // NEW: Multiple job codes selection for rate contract
+                        name: "rateContractJobCodes",
+                        label: "Job Codes",
+                        type: "multiselect",
                         required: true,
-                        options: [
-                            { label: "Single", value: "Single" },
-                            { label: "Multiple", value: "Multiple" }
-                        ],
+                        options: getJobCodesDropdownOptions(),
+                        span: 2,
+                        placeholder: "Select one or more job codes",
                     }
                 ] : []),
             ].filter(Boolean),
@@ -758,7 +774,7 @@ const Indent1 = () => {
         })
     }
 
-    // Handle Job Selection
+    // Handle Job Selection for Job Indent
     const handleJobSelect = (job) => {
         const filteredJobs = jobMasterState.filter(item => item.category === job.category && item.jobCode !== job.jobCode);
         setJobMasterState(prev => {
@@ -778,6 +794,15 @@ const Indent1 = () => {
                 indentId: value
             });
             handleSearch(value);
+            return;
+        }
+
+        // Handle rateContractJobCodes (multiple job codes selection for rate contract)
+        if (fieldName === "rateContractJobCodes") {
+            setFormData({
+                ...formData,
+                rateContractJobCodes: value
+            });
             return;
         }
 
@@ -934,7 +959,14 @@ const Indent1 = () => {
     const handleSearch = async (value) => {
         try {
             const { data } = await axios.get(`/api/indents/indentData/${value}`)
-            setFormData(data.responseData || {})
+            const responseData = data.responseData || {};
+            
+            // Ensure rateContractJobCodes is always an array
+            if (!responseData.rateContractJobCodes) {
+                responseData.rateContractJobCodes = [];
+            }
+            
+            setFormData(responseData);
             setSearchDone(true);
         }
         catch (error) {
@@ -979,6 +1011,14 @@ const Indent1 = () => {
             if (proprietaryInvalid) return;
         }
 
+        // Validate rate contract job codes
+        if (formData.isItARateContractIndent) {
+            if (!formData.rateContractJobCodes || formData.rateContractJobCodes.length === 0) {
+                message.error("Please select at least one job code for Rate Contract Indent.");
+                return;
+            }
+        }
+
         const payload = {
             ...formData,
             indentType: indentType,
@@ -991,7 +1031,8 @@ const Indent1 = () => {
             preBidMeetingVenue: formData.isPreBidMeetingRequired ? formData.preBidMeetingVenue : null,
             estimatedRate: formData.isItARateContractIndent ? formData.estimatedRate : null,
             periodOfContract: formData.isItARateContractIndent ? formData.periodOfContract : null,
-            singleAndMultipleJob: formData.isItARateContractIndent ? formData.singleAndMultipleJob : null,
+            // NEW: Send rateContractJobCodes as array (replaces singleAndMultipleJob)
+            rateContractJobCodes: formData.isItARateContractIndent ? formData.rateContractJobCodes : null,
             justification: formData.brandPac ? formData.justification : null,
             reason: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.reason : null,
             proprietaryJustification: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.proprietaryJustification : null,
@@ -1001,13 +1042,12 @@ const Indent1 = () => {
             jobDetails: indentType === "job" ? formData.jobDetails : null,
         };
 
-        try {
-        setSubmitBtnLoading(true);
-        let response;
+        // Remove old field that's no longer used
+        delete payload.singleAndMultipleJob;
 
-        const axiosConfig = {
-            timeout: 300000, // 5 minutes timeout for large uploads
-        };
+        try {
+            setSubmitBtnLoading(true);
+            let response;
 
             if (formData?.indentId) {
                 response = await axios.put(`/api/indents/${formData.indentId}`, payload);
@@ -1023,18 +1063,18 @@ const Indent1 = () => {
             });
 
             setModalOpen(true);
-    } catch (error) {
-        // Handle file size error specifically
-        if (error.response?.status === 413 || 
-            error.response?.data?.responseStatus?.errorType === "FILE_TOO_LARGE") {
-            message.error(`File size too large. Maximum ${MAX_FILE_SIZE_MB}MB per file allowed.`);
-        } else {
-            message.error(error.response?.data?.responseStatus?.message || error.message || "Error submitting indent.");
+        } catch (error) {
+            // Handle file size error specifically
+            if (error.response?.status === 413 || 
+                error.response?.data?.responseStatus?.errorType === "FILE_TOO_LARGE") {
+                message.error(`File size too large. Maximum ${MAX_FILE_SIZE_MB}MB per file allowed.`);
+            } else {
+                message.error(error.response?.data?.responseStatus?.message || error.message || "Error submitting indent.");
+            }
+        } finally {
+            setSubmitBtnLoading(false);
         }
-    } finally {
-        setSubmitBtnLoading(false);
-    }
-};
+    };
 
     const addMaterialFunc = () => {
         if (indentType === "material") {
@@ -1086,7 +1126,7 @@ const Indent1 = () => {
         <Card className='a4-container' ref={printRef}>
             <Heading title="Indent Creation" />
 
-            {/* Indent Type and Category Selection - Styled as form fields */}
+            {/* Indent Type and Category Selection */}
             <Row gutter={16} style={{ marginBottom: '20px', marginTop: '16px' }}>
                 <Col span={6}>
                     <div style={{ marginBottom: '8px' }}>
@@ -1127,7 +1167,6 @@ const Indent1 = () => {
                             style={{ width: '100%' }}
                             placeholder="Select Category"
                         >
-                            {/* <Option value="all">All</Option> */}
                             <Option value="computer">Computer</Option>
                             <Option value="non-computer">Non-Computer</Option>
                         </Select>

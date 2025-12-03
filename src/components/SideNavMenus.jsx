@@ -101,7 +101,241 @@ export const commonMenu = [
     ],
   },
 ];
+// Add this complete Admin menu BEFORE the sidebarMenus export
+const adminMenuItems = [
+  {
+    key: "1",
+    icon: <DashboardOutlined />,
+    label: "Dashboard",
+    path: "/",
+  },
+  {
+    key: "2",
+    icon: <UsergroupAddOutlined />,
+    label: "Queue",
+    path: "/queue",
+  },
+  {
+    key: "3",
+    icon: <FileTextOutlined />,
+    label: "Reports",
+    path: "/reports",
+  },
+  {
+    key: "6",
+    icon: <FileTextOutlined />,
+    label: "Inventory Reports",
+    path: "/invReports",
+  },
+  {
+    key: "7",
+    icon: <MoneyCollectOutlined />,
+    label: "Contingency Purchase",
+    path: "/procurement/contingencyPurchase",
+  },
+  {
+    key: "9",
+    icon: <MoneyCollectOutlined />,
+    label: "Payment Voucher",
+    path: "/procurement/PaymentVoucher/Invoice",
+  },
+  {
+    key: "accounting",
+    icon: <BankOutlined />,
+    label: "Accounting",
+    items: [
+      {
+        key: "vendor-ledger",
+        icon: <UserOutlined />,
+        label: "Vendor Ledgers",
+        path: "/accounting/vendor-ledger",
+      },
+      {
+        key: "tally-integration",
+        icon: <FileTextOutlined />,
+        label: "Tally Integration",
+        path: "/accounting/tally-integration",
+      },
+      {
+        key: "payment-register",
+        icon: <CalendarOutlined />,
+        label: "Payment Register",
+        path: "/accounting/payment-register",
+      },
+    ],
+  },
+  {
+    key: "procurement",
+    label: "Procurement",
+    items: [
+      {
+        key: "indent-submenu",
+        label: "Indent",
+        items: [
+          {
+            key: "indent-creation",
+            icon: <FileAddOutlined />,
+            label: "Indent Creation",
+            path: "/procurement/indent/creation",
+          },
+          {
+            key: "indent-modification",
+            icon: <FileExclamationOutlined />,
+            label: "Indent Modification",
+            path: "/procurement/indent/modification",
+          },
+        ],
+      },
+      {
+        key: "tender-submenu",
+        label: "Tender",
+        items: [
+          {
+            key: "tender-request",
+            icon: <FileExclamationOutlined />,
+            label: "Tender Request",
+            path: "/procurement/tender/request",
+          },
+          {
+            key: "tender-evaluation",
+            icon: <FileTextOutlined />,
+            label: "Tender Evaluation",
+            path: "/procurement/tender/evaluation",
+          },
+          {
+            key: "tender-gem-evaluation",
+            icon: <FileTextOutlined />,
+            label: "Gem Tender Evaluation",
+            path: "/procurement/tender/gem",
+          },
+          {
+            key: "tender-quotations",
+            icon: <FileTextOutlined />,
+            label: "Quotations",
+            path: "/procurement/tender/Quotations",
+          },
+        ],
+      },
+      {
+        key: "purchase-order",
+        icon: <MoneyCollectOutlined />,
+        label: "Purchase Order (PO)",
+        path: "/procurement/purchaseOrder",
+      },
+      {
+        key: "service-order",
+        icon: <MoneyCollectOutlined />,
+        label: "Service Order",
+        path: "/procurement/serviceOrder",
+      },
+      {
+        key: "job-creation",
+        icon: <FileAddOutlined />,
+        label: "Job Creation",
+        path: "/procurement/jobCreation",
+      },
+      {
+        key: "work-creation",
+        icon: <FileAddOutlined />,
+        label: "Work Creation",
+        path: "/procurement/workCreation",
+      },
+      {
+        key: "delivery-tracking",
+        icon: <FileTextOutlined />,
+        label: "Delivery Tracking",
+        path: "/procurement/deliveryTracking",
+      },
+    ],
+  },
+  {
+    key: "inventory",
+    label: "Inventory",
+    items: [
+      {
+        key: "gprn",
+        icon: <GoldOutlined />,
+        label: "GPRN",
+        path: "/inventory/gprn",
+      },
+      {
+        key: "goods-inspection",
+        icon: <CheckSquareOutlined />,
+        label: "Goods Inspection",
+        path: "/inventory/goodsInspection",
+      },
+      {
+        key: "goods-return",
+        icon: <RollbackOutlined />,
+        label: "Goods Return",
+        path: "/inventory/goodsReturn",
+      },
+      {
+        key: "goods-receipt",
+        icon: <ReconciliationOutlined />,
+        label: "Goods Receipt and Inspection",
+        path: "/inventory/goodsReceipt",
+      },
+      {
+        key: "asset-master",
+        icon: <ApartmentOutlined />,
+        label: "Asset Master",
+        path: "/inventory/assetMaster",
+      },
+      {
+        key: "goods-issue",
+        icon: <MdOutlineAddBox />,
+        label: "Goods Issue",
+        path: "/inventory/goodsIssue",
+      },
+      {
+        key: "goods-transfer",
+        icon: <BiTransferAlt />,
+        label: "Goods Transfer",
+        path: "/inventory/goodsTransfer",
+      },
+      {
+        key: "material-disposal",
+        icon: <TiFolderDelete />,
+        label: "Material Disposal",
+        path: "/inventory/materialDisposal",
+      },
+      {
+        key: "asset-auction",
+        icon: <TiFolderDelete />,
+        label: "Asset Auction",
+        path: "/inventory/ForDisposalAssets",
+      },
+      {
+        key: "outward-gate-pass",
+        icon: <CiPassport1 />,
+        label: "Outward Gate Pass",
+        path: "/inventory/outward",
+      },
+      {
+        key: "inward-gate-pass",
+        icon: <CiPassport1 />,
+        label: "Inward Gate Pass",
+        path: "/inventory/inward",
+      },
+      {
+        key: "demand-issue",
+        icon: <GoIssueReopened />,
+        label: "Demand and Issue",
+        path: "/inventory/demandIssue",
+      },
+    ],
+  },
+  {
+    key: "masters",
+    icon: <MdOutlineSettings />,
+    label: "Masters",
+    path: "/masters",
+  },
+];
+
 export const sidebarMenus = {
+  "Admin": adminMenuItems,  // ✅ ADD THIS - Admin gets everything
   "Indent Creator": [
     ...commonMenu,
     {
