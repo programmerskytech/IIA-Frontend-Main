@@ -319,9 +319,13 @@ export const apiCall = async (method, url, token, payload = null) => {
             </Form.Item>
         );
         case "custom":
-  
+
   if (typeof field.render === "function") {
-    return field.render();
+    // Extract index from field name if it's an array field like "materialDetails[0].purchaseHistoryButton"
+    const fieldNameStr = typeof field.name === 'string' ? field.name : '';
+    const match = fieldNameStr.match(/\[(\d+)\]/);
+    const index = match ? parseInt(match[1], 10) : null;
+    return field.render(index);
   }
   throw new Error("Custom type requires a render function.");
 

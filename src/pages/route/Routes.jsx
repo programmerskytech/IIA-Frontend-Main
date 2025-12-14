@@ -59,6 +59,7 @@ import VendorLedger from "../accounting/VendorLedger";
 import TrialBalance from "../accounting/TrialBalance";
 import PaymentRegister from "../accounting/PaymentRegister";
 import TallyIntegrationReport from "../reports/TallyIntegrationReport"
+import CancellationApprovalPage from "../dashboard/cancellation/CancellationApprovalPage";
 /*
 const RoutesComponent = () => {
   return (
@@ -205,8 +206,9 @@ const purchasePersonnelRoutes = (
     <Route path="/procurement/tender/evaluation" element={<TenderEvaluator />} />
     <Route path="/procurement/tender/gem" element={<TenderEvaluatorGem />} />
     <Route path="/procurement/tender/Quotations" element={<Quotations />} />
-   
-    
+    <Route path="/procurement/cancellation/approval" element={<CancellationApprovalPage />} />
+
+
       <Route path="/procurement/purchaseOrder" element={<PO />} />
       <Route path="/procurement/serviceOrder" element={<SO />} />
 
@@ -248,7 +250,7 @@ const adminRoutes = (
   <>
     {/* Masters */}
     <Route path="/masters" element={<Master />} />
-    
+
     {/* Procurement - ALL */}
     <Route path="/procurement/indent/creation" element={<Indent1 />} />
     <Route path="/procurement/indent/modification" element={<Form3 />} />
@@ -256,6 +258,7 @@ const adminRoutes = (
     <Route path="/procurement/tender/evaluation" element={<TenderEvaluator />} />
     <Route path="/procurement/tender/gem" element={<TenderEvaluatorGem />} />
     <Route path="/procurement/tender/Quotations" element={<Quotations />} />
+    <Route path="/procurement/cancellation/approval" element={<CancellationApprovalPage />} />
     <Route path="/procurement/purchaseOrder" element={<PO />} />
     <Route path="/procurement/serviceOrder" element={<SO />} />
     <Route path="/procurement/jobCreation" element={<JobCreation />} />

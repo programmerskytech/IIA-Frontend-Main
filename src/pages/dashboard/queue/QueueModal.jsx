@@ -30,6 +30,7 @@ import {
 import QueueHistory from "./QueueHistory";
 import MaterialHistory from "./MaterialIndentHistory";
 import { baseURL } from '../../../App';
+import ProjectBudgetDisplay from '../../../components/ProjectBudgetDisplay';
 
 
 
@@ -182,6 +183,16 @@ const QueueModal = ({
                   </Col>
                 </Row>
               </div>
+
+              {/* Project Budget Display */}
+              {detailsData.projectCode && (
+                <div style={{ marginBottom: '16px' }}>
+                  <ProjectBudgetDisplay
+                    projectCode={detailsData.projectCode}
+                    indentAmount={detailsData.totalPriceOfAllMaterials}
+                  />
+                </div>
+              )}
 
               {detailsData.isPreBidMeetingRequired && (
                 <div className="detail-section">

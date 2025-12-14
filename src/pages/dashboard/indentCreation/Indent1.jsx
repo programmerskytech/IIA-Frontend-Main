@@ -1,6 +1,7 @@
-import { Card, message, Select, Row, Col, Tag } from 'antd'
+import { Card, message, Select, Row, Col, Tag, Button } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
+import { HistoryOutlined } from '@ant-design/icons'
 import Heading from '../../../components/DKG_Heading'
 import { renderFormFields } from '../../../utils/CommonFunctions'
 import CustomForm from '../../../components/DKG_CustomForm'
@@ -8,6 +9,8 @@ import ButtonContainer from '../../../components/ButtonContainer'
 import { useReactToPrint } from 'react-to-print'
 import axios from 'axios'
 import CustomModal from '../../../components/CustomModal'
+import PurchaseHistoryModal from '../../../components/PurchaseHistoryModal'
+import IndentCancellationModal from '../../../components/IndentCancellationModal'
 import PrintFormate from '../../../utils/PrintFormate'
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
@@ -97,46 +100,43 @@ const Indent1 = () => {
     // Job Codes Master State for Rate Contract dropdown
     const [jobCodesMaster, setJobCodesMaster] = useState([]);
 
-    const handleCancel = async (remarks) => {
-        try {
-            const payload = {
-                indentId: formData.indentId,
-                cancelStatus: true,
-                cancelRemarks: remarks
-            };
-
-            await axios.put("/api/indents/indent/cancel", payload);
-
-            message.success("Indent cancelled successfully.");
-
-            // Reset form
-            setFormData({
-                indentorName: userName,
-                indentorMobileNo: mobileNumber,
-                indentorEmailAddress: email,
-                projectName: "",
-                consignesLocation: "",
-                materialDetails: [{}],
-                jobDetails: [{}],
-                rateContractJobCodes: [] // Reset job codes
-            });
-            setSearchDone(false);
-            setIndentIdDropdown([]);
-        } catch (error) {
-            console.error(error);
-            message.error("Failed to cancel the indent. Please try again.");
+    // Updated handleCancel - Now opens cancellation request modal instead of direct cancel
+    const handleCancel = () => {
+        if (!formData.indentId) {
+            message.warning('No indent selected for cancellation');
+            return;
         }
+        setCancellationModalOpen(true);
+    };
+
+    // Handle successful cancellation request submission
+    const handleCancellationSuccess = () => {
+        // Reset form after successful request
+        setFormData({
+            indentorName: userName,
+            indentorMobileNo: mobileNumber,
+            indentorEmailAddress: email,
+            indentorDepartment: '',
+            projectName: "",
+            consignesLocation: "",
+            materialDetails: [{}],
+            jobDetails: [{}],
+            rateContractJobCodes: []
+        });
+        setSearchDone(false);
+        setIndentIdDropdown([]);
     };
 
     const [formData, setFormData] = useState({
         indentorName: userName,
         indentorMobileNo: mobileNumber,
         indentorEmailAddress: email,
+        indentorDepartment: '', // ✅ CHANGED: Start empty, will be fetched based on name
         projectName: "",
         consignesLocation: "",
         materialDetails: [{}],
         jobDetails: [{}],
-        rateContractJobCodes: [] // NEW: Multiple job codes for rate contract
+        rateContractJobCodes: []
     })
 
     const { locationMaster, projectMaster, materialMaster, vendorMaster } = useSelector(state => state.masters)
@@ -148,6 +148,9 @@ const Indent1 = () => {
     const [selectedModeOfProcurement, setSelectedModeOfProcurement] = useState("")
     const [indentIdDropdown, setIndentIdDropdown] = useState([]);
     const [searchDone, setSearchDone] = useState(false);
+
+    // ✅ NEW: State for department computer price limit
+    const [departmentPriceLimit, setDepartmentPriceLimit] = useState(null);
 
     const locationDropdown = locationMaster.map((item) => {
         return {
@@ -173,6 +176,29 @@ const Indent1 = () => {
     const budgetCodeDropdown = [...new Set(projectMaster.map(p => p.budgetType))].map(bt => ({ label: bt, value: bt }))
 
     const [modalOpen, setModalOpen] = useState(false);
+
+    // Purchase History Modal State
+    const [purchaseHistoryModalOpen, setPurchaseHistoryModalOpen] = useState(false);
+    const [selectedMaterialForHistory, setSelectedMaterialForHistory] = useState({
+        materialCode: '',
+        materialDescription: ''
+    });
+
+    // Cancellation Request Modal State
+    const [cancellationModalOpen, setCancellationModalOpen] = useState(false);
+
+    // Handle opening purchase history modal
+    const handleOpenPurchaseHistory = (materialCode, materialDescription) => {
+        if (!materialCode) {
+            message.warning('Please select a material first');
+            return;
+        }
+        setSelectedMaterialForHistory({
+            materialCode,
+            materialDescription
+        });
+        setPurchaseHistoryModalOpen(true);
+    };
 
     const printComponentRef = useRef();
 
@@ -216,13 +242,111 @@ const Indent1 = () => {
         }
     };
 
+    // ✅ NEW: Fetch department for a given employee name
+    const fetchDepartmentByName = async (employeeName) => {
+        if (!employeeName || employeeName.trim() === '') {
+            return '';
+        }
+
+        try {
+            const { data } = await axios.get('/api/employee-department-master/department/by-name', {
+                params: { employeeName: employeeName.trim() }
+            });
+
+            return data?.responseData?.departmentName || '';
+        } catch (error) {
+            console.error('Error fetching department:', error);
+            return '';
+        }
+    };
+
+    // ✅ NEW: Fetch department computer price limit
+    const fetchDepartmentPriceLimit = async (departmentName) => {
+        if (!departmentName || departmentName.trim() === '') {
+            setDepartmentPriceLimit(null);
+            return null;
+        }
+
+        try {
+            const { data } = await axios.get(`/api/department-computer-price-limit/department/${departmentName.trim()}`);
+            const limit = data?.responseData?.priceLimit || null;
+            setDepartmentPriceLimit(limit);
+            return limit;
+        } catch (error) {
+            // No price limit configured for this department
+            console.log('No price limit found for department:', departmentName);
+            setDepartmentPriceLimit(null);
+            return null;
+        }
+    };
+
+    // ✅ NEW: Validate unit price against department limit for computer items
+    const validateComputerItemPrice = (materialSubCategory, unitPrice, departmentName) => {
+        // Only validate for Computer & Peripherals category
+        if (materialSubCategory !== "Computer & Peripherals") {
+            return true;
+        }
+
+        // If no department, cannot validate
+        if (!departmentName) {
+            message.warning('Department not found. Please ensure indentor name is correct.');
+            return false;
+        }
+
+        // If no price limit configured, allow
+        if (!departmentPriceLimit) {
+            return true;
+        }
+
+        // Validate unit price against limit
+        const price = Number(unitPrice);
+        const limit = Number(departmentPriceLimit);
+
+        if (price > limit) {
+            message.error(`Unit price ₹${price.toLocaleString()} exceeds the department limit of ₹${limit.toLocaleString()} for Computer & Peripherals category.`);
+            return false;
+        }
+
+        return true;
+    };
+
+    // Auto-fetch department based on indentor name
+    const handleIndentorNameChange = async (indentorName) => {
+        if (!indentorName || indentorName.trim() === '') {
+            // Clear department if name is empty
+            setFormData({
+                ...formData,
+                indentorName: indentorName,
+                indentorDepartment: ''
+            });
+            setDepartmentPriceLimit(null);
+            return;
+        }
+
+        const department = await fetchDepartmentByName(indentorName);
+
+        setFormData({
+            ...formData,
+            indentorName: indentorName,
+            indentorDepartment: department
+        });
+
+        if (!department) {
+            message.warning('No department found for this employee name');
+            setDepartmentPriceLimit(null);
+        } else {
+            // ✅ Fetch price limit for the department
+            await fetchDepartmentPriceLimit(department);
+        }
+    };
+
     // Fetch Job Master Data (for both Job Indent and Rate Contract Job Codes dropdown)
     const fetchJobMaster = async () => {
         try {
             const { data } = await axios.get("/api/job-master");
             if (data?.responseData) {
                 setJobMasterState(data.responseData);
-                setJobCodesMaster(data.responseData); // Also populate for rate contract dropdown
+                setJobCodesMaster(data.responseData);
             }
         } catch (error) {
             console.error("Error fetching job master:", error);
@@ -246,10 +370,27 @@ const Indent1 = () => {
         }
     };
 
+    // ✅ NEW: Auto-fetch department when component loads with userName
     useEffect(() => {
+        const initializeDepartment = async () => {
+            if (userName) {
+                const department = await fetchDepartmentByName(userName);
+                setFormData(prev => ({
+                    ...prev,
+                    indentorDepartment: department
+                }));
+
+                // ✅ Fetch price limit for the department
+                if (department) {
+                    await fetchDepartmentPriceLimit(department);
+                }
+            }
+        };
+
+        initializeDepartment();
         fetchJobMaster();
         fetchUomMaster();
-    }, []);
+    }, [userName]);
 
     // Filter materials based on category type (Computer / Non-Computer)
     const getFilteredMaterialMaster = () => {
@@ -291,7 +432,7 @@ const Indent1 = () => {
     // Material Details Input Fields
     const getMaterialInputFields = () => {
         const filteredMaterials = getFilteredMaterialMaster();
-        
+
         return {
             heading: "Material Details",
             addButton: true,
@@ -308,6 +449,29 @@ const Indent1 = () => {
                             value: item.materialCode
                         }
                     })
+                },
+                {
+                    name: "purchaseHistoryButton",
+                    label: " ",
+                    type: "custom",
+                    render: (index) => {
+                        const materialCode = formData.materialDetails?.[index]?.materialCode;
+                        const materialDescription = formData.materialDetails?.[index]?.materialDescription;
+                        return (
+                            <div style={{ marginTop: '30px' }}>
+                                <Button
+                                    type="default"
+                                    icon={<HistoryOutlined />}
+                                    onClick={() => handleOpenPurchaseHistory(materialCode, materialDescription)}
+                                    disabled={!materialCode}
+                                    size="middle"
+                                    style={{ width: '100%' }}
+                                >
+                                    Purchase History
+                                </Button>
+                            </div>
+                        );
+                    }
                 },
                 {
                     name: "materialDescription",
@@ -346,7 +510,21 @@ const Indent1 = () => {
                 },
                 {
                     name: "unitPrice",
-                    label: "Unit Price inclusive of all taxes, duties and free door delivery",
+                    label: (
+                        <span>
+                            Unit Price inclusive of all taxes, duties and free door delivery
+                            {departmentPriceLimit && materialCategoryType === "computer" && (
+                                <span style={{
+                                    color: '#1890ff',
+                                    fontSize: '12px',
+                                    fontWeight: 'normal',
+                                    marginLeft: '10px'
+                                }}>
+                                    (Dept. Limit: ₹{Number(departmentPriceLimit).toLocaleString()})
+                                </span>
+                            )}
+                        </span>
+                    ),
                     type: "text",
                     required: true
                 },
@@ -546,6 +724,13 @@ const Indent1 = () => {
                     label: "Email",
                     type: "text",
                     required: true
+                },
+                {
+                    name: "indentorDepartment",
+                    label: "Department",
+                    type: "text",
+                    required: true,
+                    disabled: true, // Auto-filled, read-only
                 }
             ]
         },
@@ -720,7 +905,7 @@ const Indent1 = () => {
                     type: "checkbox",
                     label: "Is it a Rate Contract Indent",
                 },
-                // Rate Contract fields - UPDATED: replaced singleAndMultipleJob with rateContractJobCodes
+                // Rate Contract fields
                 ...(formData.isItARateContractIndent ? [
                     {
                         name: "estimatedRate",
@@ -735,7 +920,6 @@ const Indent1 = () => {
                         required: true,
                     },
                     {
-                        // NEW: Multiple job codes selection for rate contract
                         name: "rateContractJobCodes",
                         label: "Job Codes",
                         type: "multiselect",
@@ -788,6 +972,7 @@ const Indent1 = () => {
 
     const handleChange = (fieldName, value) => {
         console.log("Fieldname, value: ", fieldName, value)
+        
         if (fieldName === "indentId") {
             setFormData({
                 ...formData,
@@ -797,7 +982,13 @@ const Indent1 = () => {
             return;
         }
 
-        // Handle rateContractJobCodes (multiple job codes selection for rate contract)
+        // Handle indentorName with auto-fetch
+        if (fieldName === "indentorName") {
+            handleIndentorNameChange(value);
+            return;
+        }
+
+        // Handle rateContractJobCodes
         if (fieldName === "rateContractJobCodes") {
             setFormData({
                 ...formData,
@@ -858,6 +1049,22 @@ const Indent1 = () => {
             else if (name === "quantity" || name === "unitPrice") {
                 const { materialDetails } = formData;
                 materialDetails[index][name] = value
+
+                // ✅ Validate unit price for computer items
+                if (name === "unitPrice") {
+                    const materialSubCategory = materialDetails[index].materialSubCategory;
+                    const isValid = validateComputerItemPrice(
+                        materialSubCategory,
+                        value,
+                        formData.indentorDepartment
+                    );
+
+                    if (!isValid) {
+                        // Price validation failed, still update the field but user is warned
+                        materialDetails[index][name] = value;
+                    }
+                }
+
                 materialDetails[index].totalPrice = (Number(materialDetails[index].quantity || 0) * Number(materialDetails[index].unitPrice || 0)).toFixed(2)
                 setFormData({
                     ...formData,
@@ -956,16 +1163,28 @@ const Indent1 = () => {
         }
     }
 
+    // ✅ UPDATED: Fetch department when loading existing indent
     const handleSearch = async (value) => {
         try {
             const { data } = await axios.get(`/api/indents/indentData/${value}`)
             const responseData = data.responseData || {};
-            
+
             // Ensure rateContractJobCodes is always an array
             if (!responseData.rateContractJobCodes) {
                 responseData.rateContractJobCodes = [];
             }
-            
+
+            // ✅ NEW: Fetch department based on indentor name from loaded indent
+            if (responseData.indentorName) {
+                const department = await fetchDepartmentByName(responseData.indentorName);
+                responseData.indentorDepartment = department;
+
+                // ✅ Fetch price limit for the department
+                if (department) {
+                    await fetchDepartmentPriceLimit(department);
+                }
+            }
+
             setFormData(responseData);
             setSearchDone(true);
         }
@@ -1009,6 +1228,27 @@ const Indent1 = () => {
             });
 
             if (proprietaryInvalid) return;
+
+            // ✅ NEW: Validate computer item prices before submission
+            let priceLimitExceeded = false;
+            formData.materialDetails.forEach((item) => {
+                if (item.materialSubCategory === "Computer & Peripherals") {
+                    const isValid = validateComputerItemPrice(
+                        item.materialSubCategory,
+                        item.unitPrice,
+                        formData.indentorDepartment
+                    );
+
+                    if (!isValid) {
+                        priceLimitExceeded = true;
+                    }
+                }
+            });
+
+            if (priceLimitExceeded) {
+                message.error("Cannot submit indent. One or more computer items exceed the department price limit.");
+                return;
+            }
         }
 
         // Validate rate contract job codes
@@ -1031,13 +1271,12 @@ const Indent1 = () => {
             preBidMeetingVenue: formData.isPreBidMeetingRequired ? formData.preBidMeetingVenue : null,
             estimatedRate: formData.isItARateContractIndent ? formData.estimatedRate : null,
             periodOfContract: formData.isItARateContractIndent ? formData.periodOfContract : null,
-            // NEW: Send rateContractJobCodes as array (replaces singleAndMultipleJob)
             rateContractJobCodes: formData.isItARateContractIndent ? formData.rateContractJobCodes : null,
             justification: formData.brandPac ? formData.justification : null,
             reason: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.reason : null,
             proprietaryJustification: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.proprietaryJustification : null,
             createdBy: userId,
-            employeeDepartment: employeeDepartment,
+            employeeDepartment: formData.indentorDepartment, // Use the auto-fetched department
             materialDetails: indentType === "material" ? formData.materialDetails : null,
             jobDetails: indentType === "job" ? formData.jobDetails : null,
         };
@@ -1187,9 +1426,24 @@ const Indent1 = () => {
                     handlePrint={handlePrint}
                     showCancel={searchDone}
                     onCancel={handleCancel}
+                    cancelButtonText="Request Cancellation"
                 />
             </CustomForm>
             <CustomModal isOpen={modalOpen} setIsOpen={setModalOpen} title="Indent" processNo={formData?.indentId} />
+            <PurchaseHistoryModal
+                visible={purchaseHistoryModalOpen}
+                onClose={() => setPurchaseHistoryModalOpen(false)}
+                materialCode={selectedMaterialForHistory.materialCode}
+                materialDescription={selectedMaterialForHistory.materialDescription}
+            />
+            <IndentCancellationModal
+                visible={cancellationModalOpen}
+                onClose={() => setCancellationModalOpen(false)}
+                indentId={formData.indentId}
+                requestedBy={userId}
+                requestedByName={userName}
+                onSuccess={handleCancellationSuccess}
+            />
             <div style={{ display: "none" }}>
                 <PrintFormate ref={printComponentRef} data={formData} />
             </div>

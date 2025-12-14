@@ -21,7 +21,8 @@ const ButtonContainer = ({
   formData,
   disabled,
   showCancel,       // <-- New prop
-  onCancel
+  onCancel,
+  cancelButtonText = "Cancel"  // <-- New prop with default value
 }) => {
   const [cancelRemarks, setCancelRemarks] = useState("");
   const navigate = useNavigate();
@@ -132,11 +133,11 @@ const ButtonContainer = ({
               </Button>
             </div>
           }
-          title="Cancel Indent"
+          title={cancelButtonText}
           trigger="click"
         >
           <Button danger type="default" icon={<CloseOutlined />}>
-            Cancel
+            {cancelButtonText}
           </Button>
         </Popover>
       )}
