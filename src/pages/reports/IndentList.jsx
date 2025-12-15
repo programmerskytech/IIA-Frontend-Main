@@ -1,7 +1,8 @@
 import React, {useEffect,useState} from 'react';
 import CustomReport from '../../components/DKG_Report';
-import { Table } from 'antd';
+import { Table, Tag } from 'antd';
 import { useSelector } from 'react-redux';
+import IndentStatusBadge from '../../components/IndentStatusBadge';
 
 const IndentList = ({ onChartData, selectedBarKey, selectedPieKey }) => {
   const [reportData, setReportData] = useState([]);
@@ -69,6 +70,55 @@ const IndentList = ({ onChartData, selectedBarKey, selectedPieKey }) => {
       dataIndex: 'status',
       key: 'status_INDENT',
       filterable: true,
+    },
+    {
+      title: 'Current Status',
+      dataIndex: 'currentStatus',
+      key: 'currentStatus_INDENT',
+      filterable: true,
+      render: (text, record) => {
+        if (!record.currentStatus) return '-';
+        const indentData = {
+          currentStatus: record.currentStatus,
+          currentStage: record.currentStage,
+          approvalLevel: record.approvalLevel
+        };
+        return <IndentStatusBadge indent={indentData} />;
+      }
+    },
+    {
+      title: 'Current Stage',
+      dataIndex: 'currentStage',
+      key: 'currentStage_INDENT',
+      filterable: true,
+      render: (text) => text ? text.replace(/_/g, ' ') : '-'
+    },
+    {
+      title: 'Version',
+      dataIndex: 'version',
+      key: 'version_INDENT',
+      filterable: true,
+      width: 80,
+      align: 'center',
+      render: (text) => text ? <Tag color="blue">v{text}</Tag> : '-'
+    },
+    {
+      title: 'Editable',
+      dataIndex: 'isEditable',
+      key: 'isEditable_INDENT',
+      filterable: true,
+      width: 90,
+      align: 'center',
+      render: (text) => text ? <Tag color="green">Yes</Tag> : <Tag color="red">No</Tag>
+    },
+    {
+      title: 'Locked',
+      dataIndex: 'isLockedForTender',
+      key: 'isLockedForTender_INDENT',
+      filterable: true,
+      width: 90,
+      align: 'center',
+      render: (text) => text ? <Tag color="orange">Yes</Tag> : <Tag color="default">No</Tag>
     },
     {
       title: 'As On Date',

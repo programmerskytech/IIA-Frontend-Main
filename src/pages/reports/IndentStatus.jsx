@@ -2,6 +2,7 @@ import React , {useEffect,useState}from 'react';
 import CustomReport from '../../components/DKG_Report';
 import { Table } from 'antd';
 import { useSelector } from 'react-redux';
+import IndentStatusBadge from '../../components/IndentStatusBadge';
 
 const IndentList = ({ onChartData, selectedBarKey, selectedPieKey }) => {
   const [reportData, setReportData] = useState([]);
@@ -32,6 +33,62 @@ const columns = [
     dataIndex: 'status',
     key: 'status',
     filterable: true,
+  },
+  {
+    title: 'Current Status',
+    dataIndex: 'currentStatus',
+    key: 'currentStatus',
+    filterable: true,
+    render: (text, record) => {
+      // Create a minimal indent object for the badge component
+      const indentData = {
+        currentStatus: record.currentStatus || text,
+        currentStage: record.currentStage,
+        approvalLevel: record.approvalLevel
+      };
+      return <IndentStatusBadge indent={indentData} />;
+    }
+  },
+  {
+    title: 'Current Stage',
+    dataIndex: 'currentStage',
+    key: 'currentStage',
+    filterable: true,
+    render: (text) => text ? text.replace(/_/g, ' ') : '-'
+  },
+  {
+    title: 'Version',
+    dataIndex: 'version',
+    key: 'version',
+    filterable: true,
+    width: 80,
+    align: 'center'
+  },
+  {
+    title: 'Approval Level',
+    dataIndex: 'approvalLevel',
+    key: 'approvalLevel',
+    filterable: true,
+    width: 120,
+    align: 'center'
+  },
+  {
+    title: 'Editable',
+    dataIndex: 'isEditable',
+    key: 'isEditable',
+    filterable: true,
+    width: 90,
+    align: 'center',
+    render: (text) => text ? 'Yes' : 'No'
+  },
+  {
+    title: 'Locked',
+    dataIndex: 'isLockedForTender',
+    key: 'isLockedForTender',
+    filterable: true,
+    width: 90,
+    align: 'center',
+    render: (text) => text ? 'Yes' : 'No'
   },
   {
     title: 'Next Action',

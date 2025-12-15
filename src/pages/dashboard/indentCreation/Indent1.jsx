@@ -1,4 +1,4 @@
-import { Card, message, Select, Row, Col, Tag, Button } from 'antd'
+import { Card, message, Select, Row, Col, Tag, Button, Alert, Space } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { HistoryOutlined } from '@ant-design/icons'
@@ -136,7 +136,16 @@ const Indent1 = () => {
         consignesLocation: "",
         materialDetails: [{}],
         jobDetails: [{}],
-        rateContractJobCodes: []
+        rateContractJobCodes: [],
+        // Bug fix fields
+        isEditable: true,
+        isLockedForTender: false,
+        lockedReason: null,
+        version: 1,
+        parentIndentId: null,
+        currentStatus: 'DRAFT',
+        currentStage: 'INDENT_CREATION',
+        approvalLevel: 0
     })
 
     const { locationMaster, projectMaster, materialMaster, vendorMaster } = useSelector(state => state.masters)
@@ -679,18 +688,30 @@ const Indent1 = () => {
         },
         {
             heading: "Status",
-            colCnt: 2,
+            colCnt: 4,
             fieldList: [
                 ...(searchDone ? [
                     {
-                        name: "processStage",
-                        label: "Process Stage",
+                        name: "currentStatus",
+                        label: "Current Status",
                         type: "text",
                         disabled: true
                     },
                     {
-                        name: "status",
-                        label: "Status",
+                        name: "currentStage",
+                        label: "Current Stage",
+                        type: "text",
+                        disabled: true
+                    },
+                    {
+                        name: "version",
+                        label: "Version",
+                        type: "text",
+                        disabled: true
+                    },
+                    {
+                        name: "approvalLevel",
+                        label: "Approval Level",
                         type: "text",
                         disabled: true
                     }
@@ -1200,6 +1221,25 @@ const Indent1 = () => {
     }, [indentId]);
 
     const onFinish = async () => {
+        // Bug Fix 1 & 2: Check if indent can be edited
+        if (formData?.indentId) {
+            if (formData.isLockedForTender) {
+                message.error({
+                    content: formData.lockedReason || 'Indent is locked as tender has been created',
+                    duration: 5
+                });
+                return;
+            }
+
+            if (!formData.isEditable) {
+                message.error({
+                    content: 'Indent is not editable. It can only be edited when sent back by an approver for revision.',
+                    duration: 5
+                });
+                return;
+            }
+        }
+
         if (indentType === "material") {
             if (selectedModeOfProcurement === "Limited Pre Approved Vendor Tender") {
                 let minFourVendorSelected = true;
@@ -1304,10 +1344,29 @@ const Indent1 = () => {
             setModalOpen(true);
         } catch (error) {
             // Handle file size error specifically
-            if (error.response?.status === 413 || 
+            if (error.response?.status === 413 ||
                 error.response?.data?.responseStatus?.errorType === "FILE_TOO_LARGE") {
                 message.error(`File size too large. Maximum ${MAX_FILE_SIZE_MB}MB per file allowed.`);
-            } else {
+            }
+            // Bug Fix: Handle edit validation errors from backend
+            else if (error.response?.status === 400) {
+                const errorMessage = error.response?.data?.responseStatus?.message || error.response?.data?.message;
+
+                if (errorMessage?.includes("locked for editing")) {
+                    message.error({
+                        content: "Cannot edit: Tender already created for this indent",
+                        duration: 5
+                    });
+                } else if (errorMessage?.includes("not editable")) {
+                    message.error({
+                        content: "Cannot edit: Indent is in approval workflow",
+                        duration: 5
+                    });
+                } else {
+                    message.error(errorMessage || "Validation error occurred");
+                }
+            }
+            else {
                 message.error(error.response?.data?.responseStatus?.message || error.message || "Error submitting indent.");
             }
         } finally {
@@ -1364,6 +1423,39 @@ const Indent1 = () => {
     return (
         <Card className='a4-container' ref={printRef}>
             <Heading title="Indent Creation" />
+
+            {/* Bug Fix: Show lock status and version information */}
+            {formData?.indentId && (
+                <Space direction="vertical" style={{ width: '100%', marginTop: '16px', marginBottom: '16px' }}>
+                    {formData.isLockedForTender && (
+                        <Alert
+                            message="Indent Locked"
+                            description={formData.lockedReason || "This indent is locked for editing as tender has been created"}
+                            type="warning"
+                            showIcon
+                            closable={false}
+                        />
+                    )}
+                    {!formData.isEditable && !formData.isLockedForTender && (
+                        <Alert
+                            message="Indent Not Editable"
+                            description="This indent is currently in approval workflow. It can only be edited when sent back for revision."
+                            type="info"
+                            showIcon
+                            closable={false}
+                        />
+                    )}
+                    {formData.version > 1 && (
+                        <Alert
+                            message={`Version ${formData.version}`}
+                            description={`This indent has been revised ${formData.version - 1} time(s)`}
+                            type="info"
+                            showIcon
+                            closable={false}
+                        />
+                    )}
+                </Space>
+            )}
 
             {/* Indent Type and Category Selection */}
             <Row gutter={16} style={{ marginBottom: '20px', marginTop: '16px' }}>

@@ -2,6 +2,7 @@ import React , {useState, useEffect} from 'react'
 import CustomReport from '../../components/DKG_Report';
 import dayjs from "dayjs";
 import { baseURL } from '../../App';
+import IndentStatusBadge from '../../components/IndentStatusBadge';
 
 const IndentReport =({ onChartData, selectedBarKey, selectedPieKey }) => {
   const [reportData, setReportData] = useState([]);
@@ -178,7 +179,35 @@ const IndentReport =({ onChartData, selectedBarKey, selectedPieKey }) => {
       title: "Current Stage of Indent",
       dataIndex: "currentStageOfIndent",
       key: "currentStageOfIndent_INDENTR",
-      filterable: true
+      filterable: true,
+      render: (text, record) => {
+        // Try to use new field first, fallback to old field
+        const stage = record.currentStage || text;
+        return stage ? stage.replace(/_/g, ' ') : '-';
+      }
+    },
+    {
+      title: "Current Status",
+      dataIndex: "currentStatus",
+      key: "currentStatus_INDENTR",
+      filterable: true,
+      render: (text, record) => {
+        if (!record.currentStatus) return '-';
+        const indentData = {
+          currentStatus: record.currentStatus,
+          currentStage: record.currentStage,
+          approvalLevel: record.approvalLevel
+        };
+        return <IndentStatusBadge indent={indentData} />;
+      }
+    },
+    {
+      title: "Version",
+      dataIndex: "version",
+      key: "version_INDENTR",
+      filterable: true,
+      width: 80,
+      align: 'center'
     },
     {
       title: "Short Closed and Cancelled",
