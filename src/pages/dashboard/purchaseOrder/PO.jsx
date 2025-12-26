@@ -11,6 +11,7 @@ import CustomModal from "../../../components/CustomModal";
 import { PoDetails } from "./InputFields";
 import { useLocation } from "react-router-dom";
 import PoFormat from "../../../utils/Po-Format";
+import { useLOVValues } from "../../../hooks/useLOVValues";
 
 const PO = () => {
   const printRef = useRef();
@@ -40,8 +41,13 @@ const PO = () => {
   });
   const location = useLocation();
       const { poId } = location.state || {};
-  
-      console.log("PO ID:", poId); 
+
+      console.log("PO ID:", poId);
+
+  // ✅ Fetch LOV values for Purchase Order (Form ID: 8)
+  const { lovValues: deliveryPeriodLOV, loading: loadingDeliveryPeriod } = useLOVValues(8, 'deliveryPeriod');
+  const { lovValues: warrantyLOV, loading: loadingWarranty } = useLOVValues(8, 'warranty');
+  const { lovValues: pbgLOV, loading: loadingPbg } = useLOVValues(8, 'applicablePbgToBeSubmitted'); 
 
   // Fetch initial data
   const populateDropdowns = async () => {
@@ -258,6 +264,35 @@ vendorNameOptions = completedVendorsData.map((vendor) => ({
                         onSearch: handleSearchPoIds,
                     };
                 }
+
+          // ✅ LOV Integration for Purchase Order fields
+          if (field.name === "deliveryPeriod") {
+            return {
+              ...field,
+              options: deliveryPeriodLOV.length > 0
+                ? deliveryPeriodLOV.map(lov => ({ label: lov.lovDisplayValue, value: lov.lovValue }))
+                : field.options
+            };
+          }
+
+          if (field.name === "warranty") {
+            return {
+              ...field,
+              options: warrantyLOV.length > 0
+                ? warrantyLOV.map(lov => ({ label: lov.lovDisplayValue, value: lov.lovValue }))
+                : field.options
+            };
+          }
+
+          if (field.name === "applicablePbgToBeSubmitted") {
+            return {
+              ...field,
+              options: pbgLOV.length > 0
+                ? pbgLOV.map(lov => ({ label: lov.lovDisplayValue, value: lov.lovValue }))
+                : field.options
+            };
+          }
+
           return field;
         }),
       };

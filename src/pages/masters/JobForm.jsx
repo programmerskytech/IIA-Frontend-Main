@@ -22,6 +22,7 @@ import {
   SaveOutlined,
   SendOutlined,
 } from "@ant-design/icons";
+import { useLOVValues } from "../../hooks/useLOVValues";
 
 
 
@@ -44,6 +45,12 @@ const JobForm = () => {
 
   const [showJobCodePopup, setShowJobCodePopup] = useState(false);
   const [generatedJobCode, setGeneratedJobCode] = useState("");
+
+  // ✅ Fetch dropdown values from LOV system (Form ID: 5 - JobMaster)
+  const { lovValues: jobCategoryLOV, loading: loadingJobCategory } = useLOVValues(5, 'jobCategory');
+  const { lovValues: jobSubcategoryLOV, loading: loadingJobSubcategory } = useLOVValues(5, 'jobSubcategory');
+  const { lovValues: uomLOV, loading: loadingUom } = useLOVValues(5, 'uom');
+  const { lovValues: currencyLOV, loading: loadingCurrency } = useLOVValues(5, 'currency');
 
   // Fetch data with Axios
   const fetchInitialData = async () => {
@@ -182,12 +189,18 @@ const JobForm = () => {
               { required: true, message: "Please select job category!" },
             ]}
           >
-            <Select placeholder="Select Job Category">
-              <Option value="AMC">AMC (Annual Maintenance Contract)</Option>
-              <Option value="Rate Contract">Rate Contract</Option>
-              <Option value="Repair And Service">Repair & Service</Option>
-              <Option value="Internet Service">Internet Service</Option>
-              <Option value="Other Service">Other Service</Option>
+            <Select placeholder="Select Job Category" loading={loadingJobCategory}>
+              {(jobCategoryLOV.length > 0 ? jobCategoryLOV : [
+                { lovValue: "AMC", lovDisplayValue: "AMC (Annual Maintenance Contract)" },
+                { lovValue: "Rate Contract", lovDisplayValue: "Rate Contract" },
+                { lovValue: "Repair And Service", lovDisplayValue: "Repair & Service" },
+                { lovValue: "Internet Service", lovDisplayValue: "Internet Service" },
+                { lovValue: "Other Service", lovDisplayValue: "Other Service" }
+              ]).map((item) => (
+                <Option key={item.lovId || item.lovValue} value={item.lovValue}>
+                  {item.lovDisplayValue}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
 
@@ -196,20 +209,24 @@ const JobForm = () => {
             label="Job Subcategory"
             rules={[{ required: true, message: "Please select subcategory!" }]}
           >
-            <Select placeholder="Select Job Subcategory">
-              <Option value="Chemicals">Chemicals</Option>
-              <Option value="Computer & Peripherals">
-                Computer & Peripherals
-              </Option>
-              <Option value="Electrical">Electrical</Option>
-              <Option value="Electronic Items">Electronic Items</Option>
-              <Option value="Equipment">Equipment</Option>
-              <Option value="Furniture">Furniture</Option>
-              <Option value="HARDWARE">HARDWARE</Option>
-              <Option value="Miscellaneous">Miscellaneous</Option>
-              <Option value="Software">Software</Option>
-              <Option value="Stationary">Stationary</Option>
-              <Option value="Vehicles">Vehicles</Option>
+            <Select placeholder="Select Job Subcategory" loading={loadingJobSubcategory}>
+              {(jobSubcategoryLOV.length > 0 ? jobSubcategoryLOV : [
+                { lovValue: "Chemicals", lovDisplayValue: "Chemicals" },
+                { lovValue: "Computer & Peripherals", lovDisplayValue: "Computer & Peripherals" },
+                { lovValue: "Electrical", lovDisplayValue: "Electrical" },
+                { lovValue: "Electronic Items", lovDisplayValue: "Electronic Items" },
+                { lovValue: "Equipment", lovDisplayValue: "Equipment" },
+                { lovValue: "Furniture", lovDisplayValue: "Furniture" },
+                { lovValue: "HARDWARE", lovDisplayValue: "HARDWARE" },
+                { lovValue: "Miscellaneous", lovDisplayValue: "Miscellaneous" },
+                { lovValue: "Software", lovDisplayValue: "Software" },
+                { lovValue: "Stationary", lovDisplayValue: "Stationary" },
+                { lovValue: "Vehicles", lovDisplayValue: "Vehicles" }
+              ]).map((item) => (
+                <Option key={item.lovId || item.lovValue} value={item.lovValue}>
+                  {item.lovDisplayValue}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
         </div>
@@ -228,8 +245,8 @@ const JobForm = () => {
             label="UOM"
             rules={[{ required: true, message: "Please select UOM!" }]}
           >
-            <Select placeholder="Select Unit of Measure">
-              {uomOptions.map((uom) => (
+            <Select placeholder="Select Unit of Measure" loading={loadingUom}>
+              {(uomLOV.length > 0 ? uomLOV.map(lov => ({value: lov.lovValue, label: lov.lovDisplayValue})) : uomOptions).map((uom) => (
                 <Option key={uom.value} value={uom.value}>
                   {uom.label}
                 </Option>
@@ -256,11 +273,17 @@ const JobForm = () => {
             label="Currency"
             rules={[{ required: true, message: "Please select currency!" }]}
           >
-            <Select placeholder="Select Currency">
-              <Option value="USD">USD</Option>
-              <Option value="INR">INR</Option>
-              <Option value="EUR">EUR</Option>
-              <Option value="GBP">GBP</Option>
+            <Select placeholder="Select Currency" loading={loadingCurrency}>
+              {(currencyLOV.length > 0 ? currencyLOV : [
+                { lovValue: "USD", lovDisplayValue: "USD" },
+                { lovValue: "INR", lovDisplayValue: "INR" },
+                { lovValue: "EUR", lovDisplayValue: "EUR" },
+                { lovValue: "GBP", lovDisplayValue: "GBP" }
+              ]).map((item) => (
+                <Option key={item.lovId || item.lovValue} value={item.lovValue}>
+                  {item.lovDisplayValue}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
 

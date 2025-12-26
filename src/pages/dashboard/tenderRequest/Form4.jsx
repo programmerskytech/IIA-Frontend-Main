@@ -944,7 +944,7 @@ const Form4 = () => {
         </div>
         <Modal
           title="Tender Created Successfully"
-          visible={showTenderIdModal}
+          open={showTenderIdModal}
           onOk={() => {
             setShowTenderIdModal(false);
             form.resetFields();

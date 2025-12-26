@@ -13,9 +13,10 @@ import { TenderDetails } from "./InputFields";
 import { multiply } from "lodash";
 import { useLocation } from "react-router-dom";
 import TenderPrintFormat from "../../../utils/TenderPrintFormat";
+import { useLOVValues } from "../../../hooks/useLOVValues";
 
 const { Option } = Select;
-const incoOptions = [
+const incoOptionsDefault = [
   { label: "DAP", value: "DAP" },
   { label: "EXWORKS", value: "EXWORKS" },
   { label: "DDP", value: "DDP" },
@@ -38,6 +39,10 @@ const Tender = () => {
 
   const [submitBtnLoading, setSubmitBtnLoading] = useState(false);
   const [generatedTenderId, setGeneratedTenderId] = useState("");
+
+  // ✅ Fetch dropdown values from LOV system (Form ID: 9 - TenderRequest)
+  const { lovValues: incoTermsLOV, loading: loadingIncoTerms } = useLOVValues(9, 'incoTerms');
+  const { lovValues: paymentTermsLOV, loading: loadingPaymentTerms } = useLOVValues(9, 'paymentTerms');
   const [isPrintEnabled, setIsPrintEnabled] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchTenderId, setSearchTenderId] = useState("");
@@ -830,7 +835,9 @@ console.log("uday"+formData.buyBack);
           label: "INCO Terms",
          // type: "text",
          type:"select",
-         options:incoOptions,
+         options: incoTermsLOV.length > 0
+           ? incoTermsLOV.map(lov => ({ label: lov.lovDisplayValue, value: lov.lovValue }))
+           : incoOptionsDefault,
           required: true,
           span: 1
         },
@@ -862,10 +869,12 @@ console.log("uday"+formData.buyBack);
           type: "select",
           required: true,
           span: 2,
-           options: [
-            { value: "100% payment within 30 days from the date of acceptance.", label: "100% payment within 30 days from the date of acceptance." },
-            { value: "Quarterly in advance on submission of invoice (in case of AMCs)", label: "Quarterly in advance on submission of invoice (in case of AMCs)" }
-          ] 
+           options: paymentTermsLOV.length > 0
+             ? paymentTermsLOV.map(lov => ({ label: lov.lovDisplayValue, value: lov.lovValue }))
+             : [
+               { value: "100% payment within 30 days from the date of acceptance.", label: "100% payment within 30 days from the date of acceptance." },
+               { value: "Quarterly in advance on submission of invoice (in case of AMCs)", label: "Quarterly in advance on submission of invoice (in case of AMCs)" }
+             ]
         },
         {
           name: "ldClause",

@@ -159,36 +159,40 @@ useEffect(() => {
     setHiddenColumns(columns.map(col => col.key));
   };
 
-  // Update the columnOptions menu
-  const columnOptions = (
-   // <Menu>
-   <Menu style={{ maxHeight: '300px', overflowY: 'auto' }}>
-        <div className="flex items-center gap-2 !bg-white">
-      <Menu.Item key="selectAll">
-
-        <Btn type="link" onClick={handleSelectAllColumns} className="!text-darkBlueHover !font-semibold " block>
+  // Column options menu items - for Dropdown menu prop
+  const columnOptionsItems = [
+    {
+      key: 'selectAll',
+      label: (
+        <Btn type="link" onClick={handleSelectAllColumns} className="!text-darkBlueHover !font-semibold" block>
           Select All
         </Btn>
-      </Menu.Item>
-      <Menu.Item key="deselectAll">
+      ),
+    },
+    {
+      key: 'deselectAll',
+      label: (
         <Button type="link" onClick={handleDeselectAllColumns} block className="border-darkBlue hover:border-darkBlueHover !text-darkBlue hover:text-darkBlueHover !font-semibold">
           Deselect All
         </Button>
-      </Menu.Item>
-        </div>
-      <Menu.Divider />
-      {columns.map((col) => (
-        <Menu.Item key={col.key}>
-          <Checkbox
-            checked={!hiddenColumns.includes(col.key)}
-            onChange={() => handleHideColumnChange(col.key)}
-          >
-            {col.title}
-          </Checkbox>
-        </Menu.Item>
-      ))}
-      <Menu.Divider />
-      <Menu.Item>
+      ),
+    },
+    { type: 'divider' },
+    ...columns.map((col) => ({
+      key: col.key,
+      label: (
+        <Checkbox
+          checked={!hiddenColumns.includes(col.key)}
+          onChange={() => handleHideColumnChange(col.key)}
+        >
+          {col.title}
+        </Checkbox>
+      ),
+    })),
+    { type: 'divider' },
+    {
+      key: 'ok-button',
+      label: (
         <Button
           type="primary"
           onClick={() => setColumnDropdownVisible(false)}
@@ -196,9 +200,9 @@ useEffect(() => {
         >
           OK
         </Button>
-      </Menu.Item>
-    </Menu>
-  );
+      ),
+    },
+  ];
 
   // Add global search function
   const handleGlobalSearch = (value) => {
@@ -250,10 +254,10 @@ useEffect(() => {
             <div className="flex gap-4">
               {!hideManageColumns && (
                 <Dropdown
-                  overlay={columnOptions}
+                  menu={{ items: columnOptionsItems, style: { maxHeight: '300px', overflowY: 'auto' } }}
                   trigger={["click"]}
-                  visible={columnDropdownVisible}
-                  onVisibleChange={(visible) => setColumnDropdownVisible(visible)}
+                  open={columnDropdownVisible}
+                  onOpenChange={(open) => setColumnDropdownVisible(open)}
                 >
                   <Button>
                     Manage Columns <DownOutlined />
@@ -271,11 +275,14 @@ useEffect(() => {
         </div>
       </div>
       <Table
-        dataSource={filteredData}
+        dataSource={filteredData.map((item, index) => ({
+          ...item,
+          _uniqueRowKey: item.id || item.key || `row-${index}-${Date.now()}-${Math.random()}`
+        }))}
         columns={enhancedColumns}
         scroll={{ x: true }}
         pagination={true}
-        rowKey={(record) => record.id || record.key || JSON.stringify(record)}
+        rowKey={(record) => record._uniqueRowKey}
         bordered
       />
     </>

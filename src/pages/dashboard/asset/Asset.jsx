@@ -12,9 +12,12 @@ import { renderFormFields } from "../../../utils/CommonFunctions";
 import { locatorMaster } from "../grn/InputFields";
 import { Input, Modal, Table, Row, Col, Button } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import { useLOVValues } from "../../../hooks/useLOVValues";
 
 
 const Asset = () => {
+  // ✅ Fetch dropdown values from LOV system (Form ID: 1 - AssetMaster)
+  const { lovValues: locatorLOV, loading: loadingLocator } = useLOVValues(1, 'locator');
   const printRef = useRef();
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
@@ -214,7 +217,9 @@ const assetFields = [
                 name: "locatorId",
                 label: "Locator",
                 type: "select",
-                options: locatorMaster,
+                options: locatorLOV.length > 0
+                    ? locatorLOV.map(lov => ({ label: lov.lovDisplayValue, value: lov.lovValue }))
+                    : locatorMaster,
                 span: 2,
                 required: true
             }

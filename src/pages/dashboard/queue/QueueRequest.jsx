@@ -1111,7 +1111,7 @@ const fetchEmployees = () => {
               }
               title="Request Change"
               trigger="click"
-              onVisibleChange={(visible) => {
+              onOpenChange={(visible) => {
                 if (visible) {
                   fetchPreviousRoles(record.workflowId, record.requestId);
                 } else {
@@ -1291,7 +1291,7 @@ const fetchEmployees = () => {
                   }
                   title="Assign Indent"
                   trigger="click"
-                  onVisibleChange={(visible) => {
+                  onOpenChange={(visible) => {
                     if (!visible) setSelectedEmployee(null);
                   }}
                 >
@@ -1477,7 +1477,7 @@ const fetchEmployees = () => {
                         }
                         title="Request Change"
                         trigger="click"
-                        onVisibleChange={(visible) => {
+                        onOpenChange={(visible) => {
                           if (!visible) {
                             setRequestChangeComment("");
                           }
@@ -1535,7 +1535,7 @@ const fetchEmployees = () => {
                         }
                         title="Request Change"
                         trigger="click"
-                        onVisibleChange={(visible) => {
+                        onOpenChange={(visible) => {
                           if (visible) {
                             // Hardcode "Indent Creator" for Material workflow
                             setPreviousRoles(["Indent Creator"]);
@@ -1614,7 +1614,7 @@ const fetchEmployees = () => {
                           }
                           title="Request Change"
                           trigger="click"
-                          onVisibleChange={(visible) => {
+                          onOpenChange={(visible) => {
                             if (visible) {
                               if (
                                 record.workflowId &&
@@ -1727,7 +1727,7 @@ const fetchEmployees = () => {
                       }
                       title="Request Change"
                       trigger="click"
-                      onVisibleChange={(visible) => {
+                      onOpenChange={(visible) => {
                         if (visible) {
                           setPreviousRoles(["Indent Creator"]);
                           setSelectedRole("Indent Creator");
@@ -1805,7 +1805,7 @@ const fetchEmployees = () => {
                         }
                         title="Request Change"
                         trigger="click"
-                        onVisibleChange={(visible) => {
+                        onOpenChange={(visible) => {
                           if (visible) {
                             if (record.workflowId && record.workflowId !== null) {
                               fetchPreviousRoles(

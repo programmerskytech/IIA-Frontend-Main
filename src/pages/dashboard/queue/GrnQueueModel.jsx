@@ -94,7 +94,7 @@ const GrnQueueModal = ({
         onCancel={() => setModalVisible(false)}
         footer={null}
         width={1000}
-        bodyStyle={{ padding: "24px" }}
+        styles={{ body: { padding: "24px" } }}
       >
         <Spin spinning={loading}>
           <style>{`

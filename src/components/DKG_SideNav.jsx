@@ -229,27 +229,25 @@ const SideNav = ({ collapsed, toggleCollapse }) => {
     }
   };
 
-  const displaySideNavItems = (item) => {
+  // Convert menu items to new Ant Design items API format
+  const convertToMenuItems = (item) => {
     if (!item.items) {
-      return (
-        <Menu.Item
-          key={item.key}
-          icon={item.icon}
-          onClick={() => handleMenuItemClick()}
-        >
-          <Link to={item.path}>{item.label}</Link>
-        </Menu.Item>
-      );
+      return {
+        key: item.key,
+        icon: item.icon,
+        label: <Link to={item.path} onClick={() => handleMenuItemClick()}>{item.label}</Link>,
+      };
     }
 
-    return (
-      <Menu.SubMenu key={item.key} icon={item.icon} title={item.label}>
-        {item.items.map((child) => displaySideNavItems(child))}
-      </Menu.SubMenu>
-    );
+    return {
+      key: item.key,
+      icon: item.icon,
+      label: item.label,
+      children: item.items.map((child) => convertToMenuItems(child)),
+    };
   };
 
-  const menuItems = items.map(displaySideNavItems);
+  const menuItems = items.map(convertToMenuItems);
 
   // Handler for logging out
   const handleLogout = () => {
@@ -278,9 +276,8 @@ const SideNav = ({ collapsed, toggleCollapse }) => {
           defaultSelectedKeys={["1"]}
           selectedKeys={selectedKey ? [selectedKey] : []}
           className="!bg-offWhite"
-        >
-          {menuItems}
-        </Menu>
+          items={menuItems}
+        />
       </Sider>
       <Divider className="m-0 w-4" />
       <IconBtn
@@ -332,27 +329,25 @@ const SideNav = ({ collapsed, toggleCollapse }) => {
     }
   };
 
-  const displaySideNavItems = (item) => {
+  // Convert menu items to new Ant Design items API format
+  const convertToMenuItems = (item) => {
     if (!item.items) {
-      return (
-        <Menu.Item
-          key={item.key}
-          icon={item.icon}
-          onClick={() => handleMenuItemClick()}
-        >
-          <Link to={item.path}>{item.label}</Link>
-        </Menu.Item>
-      );
+      return {
+        key: item.key,
+        icon: item.icon,
+        label: <Link to={item.path} onClick={() => handleMenuItemClick()}>{item.label}</Link>,
+      };
     }
 
-    return (
-      <Menu.SubMenu key={item.key} icon={item.icon} title={item.label}>
-        {item.items.map((child) => displaySideNavItems(child))}
-      </Menu.SubMenu>
-    );
+    return {
+      key: item.key,
+      icon: item.icon,
+      label: item.label,
+      children: item.items.map((child) => convertToMenuItems(child)),
+    };
   };
 
-  const menuItems = items.map(displaySideNavItems);
+  const menuItems = items.map(convertToMenuItems);
 
   // Handler for logging out
   const handleLogout = () => {
@@ -381,9 +376,8 @@ const SideNav = ({ collapsed, toggleCollapse }) => {
           defaultSelectedKeys={["1"]}
           selectedKeys={selectedKey ? [selectedKey] : []}
           className="!bg-offWhite"
-        >
-          {menuItems}
-        </Menu>
+          items={menuItems}
+        />
       </Sider>
       <Divider className="m-0 w-4" />
       <IconBtn

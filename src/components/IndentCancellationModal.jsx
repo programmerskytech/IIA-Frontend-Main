@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const { TextArea } = Input;
 
-const IndentCancellationModal = ({ visible, onClose, indentId, requestedBy, requestedByName, onSuccess }) => {
+const IndentCancellationModal = ({ open, onClose, indentId, requestedBy, requestedByName, onSuccess }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -70,7 +70,7 @@ const IndentCancellationModal = ({ visible, onClose, indentId, requestedBy, requ
                     <span>Request Indent Cancellation</span>
                 </div>
             }
-            open={visible}
+            open={open}
             onCancel={handleCancel}
             footer={[
                 <Button key="cancel" onClick={handleCancel} disabled={loading}>

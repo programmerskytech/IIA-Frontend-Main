@@ -24,10 +24,10 @@ const masterDropDown = [
         value: "Vendor",
         label: "Vendor"
     },
-    {
-        value: "Employee",
-        label: "Employee"
-    },
+    // {
+    //     value: "Employee",
+    //     label: "Employee"
+    // },
 ]
 
 const Master = () => {

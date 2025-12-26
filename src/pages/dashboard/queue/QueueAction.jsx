@@ -58,14 +58,21 @@ const QueueAction = () => {
   */
  if (parsedRoleId === 1) {
     return (
-      <Tabs defaultActiveKey="tenders">
-        <Tabs.TabPane tab="Tender IDs" key="tenders">
-          <ApprovedTenders />
-        </Tabs.TabPane>
-        <Tabs.TabPane tab="Subworkflow Tender IDs" key="subworkflow">
-          <SubworkflowTransition />
-        </Tabs.TabPane>
-      </Tabs>
+      <Tabs
+        defaultActiveKey="tenders"
+        items={[
+          {
+            key: 'tenders',
+            label: 'Tender IDs',
+            children: <ApprovedTenders />,
+          },
+          {
+            key: 'subworkflow',
+            label: 'Subworkflow Tender IDs',
+            children: <SubworkflowTransition />,
+          },
+        ]}
+      />
     );
   }
 

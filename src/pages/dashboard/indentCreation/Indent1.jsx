@@ -14,6 +14,7 @@ import IndentCancellationModal from '../../../components/IndentCancellationModal
 import PrintFormate from '../../../utils/PrintFormate'
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import { useLOVValues } from '../../../hooks/useLOVValues';
 
 const { Option } = Select;
 
@@ -111,11 +112,11 @@ const Indent1 = () => {
 
     // Handle successful cancellation request submission
     const handleCancellationSuccess = () => {
-        // Reset form after successful request
+        // Reset form after successful request - fields will be re-fetched from employee table
         setFormData({
-            indentorName: userName,
-            indentorMobileNo: mobileNumber,
-            indentorEmailAddress: email,
+            indentorName: '',
+            indentorMobileNo: '',
+            indentorEmailAddress: '',
             indentorDepartment: '',
             projectName: "",
             consignesLocation: "",
@@ -125,13 +126,16 @@ const Indent1 = () => {
         });
         setSearchDone(false);
         setIndentIdDropdown([]);
+
+        // Re-trigger employee details fetch
+        window.location.reload(); // Simple way to re-fetch employee details
     };
 
     const [formData, setFormData] = useState({
-        indentorName: userName,
-        indentorMobileNo: mobileNumber,
-        indentorEmailAddress: email,
-        indentorDepartment: '', // ✅ CHANGED: Start empty, will be fetched based on name
+        indentorName: '', // ✅ Will be auto-filled from employee table via API
+        indentorMobileNo: '', // ✅ Will be auto-filled from employee table via API
+        indentorEmailAddress: '', // ✅ Will be auto-filled from employee table via API
+        indentorDepartment: '', // ✅ Will be auto-filled from employee table via API
         projectName: "",
         consignesLocation: "",
         materialDetails: [{}],
@@ -161,12 +165,19 @@ const Indent1 = () => {
     // ✅ NEW: State for department computer price limit
     const [departmentPriceLimit, setDepartmentPriceLimit] = useState(null);
 
-    const locationDropdown = locationMaster.map((item) => {
-        return {
+    // ✅ Fetch consignee location values from LOV system (Form ID: 3, Designator: consigneeLocation)
+    const { lovValues: consigneeLocationLOV, loading: loadingLocations } = useLOVValues(3, 'consigneeLocation');
+
+    // ✅ Use LOV values if available, otherwise fallback to locationMaster from Redux
+    const locationDropdown = consigneeLocationLOV.length > 0
+        ? consigneeLocationLOV.map((item) => ({
+            label: item.lovDisplayValue,
+            value: item.lovValue
+          }))
+        : locationMaster.map((item) => ({
             label: item.locationName,
             value: item.locationCode
-        }
-    })
+          }))
 
     const projectDropdown = projectMaster.map((item) => {
         return {
@@ -379,27 +390,63 @@ const Indent1 = () => {
         }
     };
 
-    // ✅ NEW: Auto-fetch department when component loads with userName
+    // ✅ UPDATED: Auto-fetch employee details (name, department, mobile, email) from employee table
     useEffect(() => {
-        const initializeDepartment = async () => {
-            if (userName) {
-                const department = await fetchDepartmentByName(userName);
-                setFormData(prev => ({
-                    ...prev,
-                    indentorDepartment: department
-                }));
+        const fetchEmployeeDetailsByUserId = async () => {
+            if (!userId) {
+                console.warn('User ID not found. Cannot fetch employee details.');
+                return;
+            }
 
-                // ✅ Fetch price limit for the department
-                if (department) {
-                    await fetchDepartmentPriceLimit(department);
+            try {
+                // Call the new API to get employee details by userId
+                const { data } = await axios.get(`/api/employee-department-master/by-user/${userId}`);
+                const employeeData = data?.responseData;
+
+                if (employeeData) {
+                    // Auto-fill all employee-related fields from employee table
+                    setFormData(prev => ({
+                        ...prev,
+                        indentorName: employeeData.employeeName || '',
+                        indentorDepartment: employeeData.departmentName || '',
+                        indentorMobileNo: employeeData.phoneNumber || '',
+                        indentorEmailAddress: employeeData.emailAddress || '',
+                    }));
+
+                    // Fetch price limit for the department (for computer items validation)
+                    if (employeeData.departmentName) {
+                        await fetchDepartmentPriceLimit(employeeData.departmentName);
+                    }
+
+                    console.log('Employee details auto-filled:', employeeData);
+                } else {
+                    console.warn('No employee data found for userId:', userId);
+                    message.warning('Employee details not found. Please contact administrator.');
+                }
+            } catch (error) {
+                console.error('Error fetching employee details:', error);
+
+                // Handle different error scenarios
+                if (error.response?.status === 404) {
+                    message.warning('Employee record not found. Please contact administrator to link your account.');
+                } else {
+                    message.error('Failed to load employee details. Using login credentials as fallback.');
+
+                    // Fallback to Redux state if API fails
+                    setFormData(prev => ({
+                        ...prev,
+                        indentorName: userName || '',
+                        indentorMobileNo: mobileNumber || '',
+                        indentorEmailAddress: email || '',
+                    }));
                 }
             }
         };
 
-        initializeDepartment();
+        fetchEmployeeDetailsByUserId();
         fetchJobMaster();
         fetchUomMaster();
-    }, [userName]);
+    }, [userId]);
 
     // Filter materials based on category type (Computer / Non-Computer)
     const getFilteredMaterialMaster = () => {
@@ -732,26 +779,29 @@ const Indent1 = () => {
                     name: "indentorName",
                     label: "Indentor Name",
                     type: "text",
-                    required: true
+                    required: true,
+                    disabled: true, // ✅ Auto-filled from employee table, read-only
                 },
                 {
                     name: "indentorMobileNo",
                     label: "Mobile No",
                     type: "text",
-                    required: true
+                    required: true,
+                    disabled: true, // ✅ Auto-filled from employee table, read-only
                 },
                 {
                     name: "indentorEmailAddress",
                     label: "Email",
                     type: "text",
-                    required: true
+                    required: true,
+                    disabled: true, // ✅ Auto-filled from employee table, read-only
                 },
                 {
                     name: "indentorDepartment",
                     label: "Department",
                     type: "text",
                     required: true,
-                    disabled: true, // Auto-filled, read-only
+                    disabled: true, // ✅ Auto-filled from employee table, read-only
                 }
             ]
         },
@@ -1184,7 +1234,7 @@ const Indent1 = () => {
         }
     }
 
-    // ✅ UPDATED: Fetch department when loading existing indent
+    // ✅ UPDATED: Load department from stored indent data or fetch from employee table
     const handleSearch = async (value) => {
         try {
             const { data } = await axios.get(`/api/indents/indentData/${value}`)
@@ -1195,15 +1245,20 @@ const Indent1 = () => {
                 responseData.rateContractJobCodes = [];
             }
 
-            // ✅ NEW: Fetch department based on indentor name from loaded indent
-            if (responseData.indentorName) {
-                const department = await fetchDepartmentByName(responseData.indentorName);
+            // ✅ Try to get department from backend response first (multiple possible field names)
+            let department = responseData.employeeDept || responseData.indentorDepartment || responseData.employeeDepartment;
+
+            // ✅ If backend didn't return department, fetch it from employee table using indentor name
+            if (!department && responseData.indentorName) {
+                department = await fetchDepartmentByName(responseData.indentorName);
+            }
+
+            // Set the department in formData
+            if (department) {
                 responseData.indentorDepartment = department;
 
-                // ✅ Fetch price limit for the department
-                if (department) {
-                    await fetchDepartmentPriceLimit(department);
-                }
+                // Fetch price limit for computer items validation
+                await fetchDepartmentPriceLimit(department);
             }
 
             setFormData(responseData);
@@ -1523,13 +1578,13 @@ const Indent1 = () => {
             </CustomForm>
             <CustomModal isOpen={modalOpen} setIsOpen={setModalOpen} title="Indent" processNo={formData?.indentId} />
             <PurchaseHistoryModal
-                visible={purchaseHistoryModalOpen}
+                open={purchaseHistoryModalOpen}
                 onClose={() => setPurchaseHistoryModalOpen(false)}
                 materialCode={selectedMaterialForHistory.materialCode}
                 materialDescription={selectedMaterialForHistory.materialDescription}
             />
             <IndentCancellationModal
-                visible={cancellationModalOpen}
+                open={cancellationModalOpen}
                 onClose={() => setCancellationModalOpen(false)}
                 indentId={formData.indentId}
                 requestedBy={userId}

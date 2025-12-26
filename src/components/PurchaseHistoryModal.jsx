@@ -3,15 +3,15 @@ import { Modal, Table, Spin, message, Empty, Button } from 'antd';
 import { HistoryOutlined, CloseOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
-const PurchaseHistoryModal = ({ visible, onClose, materialCode, materialDescription }) => {
+const PurchaseHistoryModal = ({ open, onClose, materialCode, materialDescription }) => {
     const [loading, setLoading] = useState(false);
     const [historyData, setHistoryData] = useState([]);
 
     useEffect(() => {
-        if (visible && materialCode) {
+        if (open && materialCode) {
             fetchPurchaseHistory();
         }
-    }, [visible, materialCode]);
+    }, [open, materialCode]);
 
     const fetchPurchaseHistory = async () => {
         setLoading(true);
@@ -139,7 +139,7 @@ const PurchaseHistoryModal = ({ visible, onClose, materialCode, materialDescript
                     </div>
                 </div>
             }
-            open={visible}
+            open={open}
             onCancel={onClose}
             footer={[
                 <Button key="close" type="primary" onClick={onClose}>
@@ -149,7 +149,7 @@ const PurchaseHistoryModal = ({ visible, onClose, materialCode, materialDescript
             width={1400}
             centered
             closeIcon={<CloseOutlined />}
-            bodyStyle={{ padding: '20px' }}
+            styles={{ body: { padding: '20px' } }}
         >
             <Spin spinning={loading} tip="Loading purchase history...">
                 {historyData.length > 0 ? (

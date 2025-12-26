@@ -11,7 +11,7 @@ const countryOptions = [
   const label = `${year} Year${year > 1 ? "s" : ""}`;
   return {
     label: label,
-    value: label 
+    value: label
   };
 });
 */

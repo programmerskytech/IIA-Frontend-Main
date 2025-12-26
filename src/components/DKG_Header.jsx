@@ -17,7 +17,15 @@ const Header = ({toggleCollapse}) => {
   const userName = useSelector((state) => state.auth.userName);
 
    const handleRoleChange = (e) => {
-    dispatch(changeRole(e.target.value)); // Update role in Redux
+    const newRole = e.target.value;
+    dispatch(changeRole(newRole)); // Update role in Redux
+
+    // ✅ Navigate to the appropriate default page for the new role
+    if (newRole === "Admin") {
+      navigate('/admin'); // Admin goes to Admin Dashboard
+    } else {
+      navigate('/'); // All other roles go to Main Dashboard
+    }
   };
 
   return (

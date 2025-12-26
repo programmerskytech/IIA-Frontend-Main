@@ -14,37 +14,50 @@ const Queue3 = () => {
 const auth = useSelector((state) => state.auth);
 const roleName=auth.role;
   return (
-    <Tabs>
-     <Tabs.TabPane tab="Pending GI And Change Request GPRN" key="gi">
-            <PendingGi />
-    </Tabs.TabPane> 
-{(roleName === 'Store Purchase Officer' || roleName === 'Indent Creator') && (
-    <Tabs.TabPane tab="Pending GI" key="g">
-            <GiApprovalPage />
-    </Tabs.TabPane> )}
-{(roleName === 'Store Purchase Officer' || roleName === 'Store Person') && (
-     <Tabs.TabPane tab="Pending GRN" key="grn">
-            <GrnApproval />
-    </Tabs.TabPane> )}
-     <Tabs.TabPane tab="Gate Pass" key="gatepass">
-            <GatePass />
-    </Tabs.TabPane> 
-     <Tabs.TabPane tab="Goods Transfer" key="gt">
-            <GoodsTransferQueue />
-    </Tabs.TabPane> 
-    {(roleName === 'Store Purchase Officer' ) && (
-     <Tabs.TabPane tab="Pending Demand And issue" key="Di">
-            <DemandAndIssueQueue />
-    </Tabs.TabPane> )}
-     {(roleName === 'Store Purchase Officer') && (
-     <Tabs.TabPane tab="Asset Disposal" key="AD">
-            <AssetDispoaslQueue />
-    </Tabs.TabPane> )}
-     {(roleName === 'Store Person') && (
-     <Tabs.TabPane tab="Pending Issue Note" key="IN">
-            <PendingIssueNote />
-    </Tabs.TabPane> )}
-    </Tabs>
+    <Tabs
+      items={[
+        {
+          key: 'gi',
+          label: 'Pending GI And Change Request GPRN',
+          children: <PendingGi />,
+        },
+        ...(roleName === 'Store Purchase Officer' || roleName === 'Indent Creator' ? [{
+          key: 'g',
+          label: 'Pending GI',
+          children: <GiApprovalPage />,
+        }] : []),
+        ...(roleName === 'Store Purchase Officer' || roleName === 'Store Person' ? [{
+          key: 'grn',
+          label: 'Pending GRN',
+          children: <GrnApproval />,
+        }] : []),
+        {
+          key: 'gatepass',
+          label: 'Gate Pass',
+          children: <GatePass />,
+        },
+        {
+          key: 'gt',
+          label: 'Goods Transfer',
+          children: <GoodsTransferQueue />,
+        },
+        ...(roleName === 'Store Purchase Officer' ? [{
+          key: 'Di',
+          label: 'Pending Demand And issue',
+          children: <DemandAndIssueQueue />,
+        }] : []),
+        ...(roleName === 'Store Purchase Officer' ? [{
+          key: 'AD',
+          label: 'Asset Disposal',
+          children: <AssetDispoaslQueue />,
+        }] : []),
+        ...(roleName === 'Store Person' ? [{
+          key: 'IN',
+          label: 'Pending Issue Note',
+          children: <PendingIssueNote />,
+        }] : []),
+      ]}
+    />
   )
 }
 

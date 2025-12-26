@@ -60,6 +60,13 @@ import TrialBalance from "../accounting/TrialBalance";
 import PaymentRegister from "../accounting/PaymentRegister";
 import TallyIntegrationReport from "../reports/TallyIntegrationReport"
 import CancellationApprovalPage from "../dashboard/cancellation/CancellationApprovalPage";
+import AdminDashboard from "../dashboard/admin/AdminDashboard";
+import ListOfValues from "../dashboard/admin/ListOfValues";
+import ApprovalWorkflow from "../dashboard/admin/ApprovalWorkflow";
+import ProjectManagement from "../dashboard/admin/ProjectManagement";
+import BudgetManagement from "../dashboard/admin/BudgetManagement";
+import EmployeeRegistration from "../dashboard/admin/EmployeeRegistration";
+import UserCreation from "../dashboard/admin/UserCreation";
 /*
 const RoutesComponent = () => {
   return (
@@ -245,39 +252,17 @@ const soCreatorRoutes = (
   </>
 );
 
-// Add this BEFORE the generateRoutes function
+// ✅ ADMIN PANEL ONLY ROUTES - Restricted routes for Admin role
 const adminRoutes = (
   <>
-    {/* Masters */}
-    <Route path="/masters" element={<Master />} />
-
-    {/* Procurement - ALL */}
-    <Route path="/procurement/indent/creation" element={<Indent1 />} />
-    <Route path="/procurement/indent/modification" element={<Form3 />} />
-    <Route path="/procurement/tender/request" element={<Tender />} />
-    <Route path="/procurement/tender/evaluation" element={<TenderEvaluator />} />
-    <Route path="/procurement/tender/gem" element={<TenderEvaluatorGem />} />
-    <Route path="/procurement/tender/Quotations" element={<Quotations />} />
-    <Route path="/procurement/cancellation/approval" element={<CancellationApprovalPage />} />
-    <Route path="/procurement/purchaseOrder" element={<PO />} />
-    <Route path="/procurement/serviceOrder" element={<SO />} />
-    <Route path="/procurement/jobCreation" element={<JobCreation />} />
-    <Route path="/procurement/workCreation" element={<WorkCreation />} />
-    <Route path="/procurement/deliveryTracking" element={<Form10 />} />
-    
-    {/* Inventory - ALL */}
-    <Route path="/inventory/gprn" element={<GPRN />} />
-    <Route path="/inventory/goodsInspection" element={<GoodsInspection />} />
-    <Route path="/inventory/goodsReturn" element={<Grv />} />
-    <Route path="/inventory/goodsReceipt" element={<Grn />} />
-    <Route path="/inventory/assetMaster" element={<Asset />} />
-    <Route path="/inventory/goodsIssue" element={<Isn />} />
-    <Route path="/inventory/goodsTransfer" element={<Form17 />} />
-    <Route path="/inventory/materialDisposal" element={<AssetDisposal />} />
-    <Route path="/inventory/ForDisposalAssets" element={<ForDisposalAssets />} />
-    <Route path="/inventory/outward" element={<Ogp />} />
-    <Route path="/inventory/inward" element={<Igp />} />
-    <Route path="/inventory/demandIssue" element={<Form20 />} />
+    {/* Admin Panel Routes ONLY */}
+    <Route path="/admin" element={<AdminDashboard />} />
+    <Route path="/admin/lov" element={<ListOfValues />} />
+    <Route path="/admin/approvers" element={<ApprovalWorkflow />} />
+    <Route path="/admin/projects" element={<ProjectManagement />} />
+    <Route path="/admin/budget" element={<BudgetManagement />} />
+    <Route path="/admin/employee" element={<EmployeeRegistration />} />
+    <Route path="/admin/user" element={<UserCreation />} />
   </>
 );
 
@@ -322,52 +307,64 @@ const RoutesComponent = () => {
   const roleName=auth.role;
   console.log("🔹 RoutesComponent – roleName:", roleName);
 
+  // ✅ Redirect Admin users to Admin Dashboard instead of Main Dashboard
+  const defaultRoute = roleName === "Admin" ? <AdminDashboard /> : <MainDashboard />;
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<CustomLayout />}>
-          <Route index element={<MainDashboard />} />
-          <Route path="/queue" element={<QueueTable />} />
+          <Route index element={defaultRoute} />
+          {/* Queue - Only show for non-Admin roles */}
+          {roleName !== "Admin" && <Route path="/queue" element={<QueueTable />} />}
 
-          {/* Reports - Common for all */}
-          <Route path="/reports" element={<ReportsMain />}>
-            <Route path="cpReport" element={<CpReport />} />
-            <Route path="indentReport" element={<IndentReport />} />
-            <Route path="technoMom" element={<TechnoMom />} />
-            <Route path="vendorContract" element={<VendorContract />} />
-            <Route path="procurementActivity" element={<ProcurementActivityReport />} />
-            <Route path="PoList" element={<PoList />} />
-            <Route path="SoList" element={<SoList />} />
-            <Route path="PoStatus" element={<PoStatus />} />
-            <Route path="SoStatus" element={<SoStatus />} />
-            <Route path="IndentList" element={<IndentList />} />
-            <Route path="QuarterlyVigilanceSoReport" element={<QuarterlyVigilanceSoReport />} />
-            <Route path="ShortClosedCancelledOrderReport" element={<ShortClosedCancelledOrderReport />} />
-            <Route path="MonthlyProcurementReport" element={<MonthlyProcurementReport />} />
-            <Route path="IndentStatus" element={<IndentStatus />} />
-          </Route>
+          {/* Reports - Exclude Admin role */}
+          {roleName !== "Admin" && (
+            <Route path="/reports" element={<ReportsMain />}>
+              <Route path="cpReport" element={<CpReport />} />
+              <Route path="indentReport" element={<IndentReport />} />
+              <Route path="technoMom" element={<TechnoMom />} />
+              <Route path="vendorContract" element={<VendorContract />} />
+              <Route path="procurementActivity" element={<ProcurementActivityReport />} />
+              <Route path="PoList" element={<PoList />} />
+              <Route path="SoList" element={<SoList />} />
+              <Route path="PoStatus" element={<PoStatus />} />
+              <Route path="SoStatus" element={<SoStatus />} />
+              <Route path="IndentList" element={<IndentList />} />
+              <Route path="QuarterlyVigilanceSoReport" element={<QuarterlyVigilanceSoReport />} />
+              <Route path="ShortClosedCancelledOrderReport" element={<ShortClosedCancelledOrderReport />} />
+              <Route path="MonthlyProcurementReport" element={<MonthlyProcurementReport />} />
+              <Route path="IndentStatus" element={<IndentStatus />} />
+            </Route>
+          )}
 
-          <Route path="/invReports" element={<InvReportsMain />}>
-            <Route path="goodsIssue" element={<GoodsIssueReport />} />
-            <Route path="igp" element={<IgpReport />} />
-            <Route path="ogp" element={<OgpReport />} />
-            <Route path="asset" element={<AssetReport />} />
-            <Route path="stock" element={<StockReport />} />
-          </Route>
+          {/* Inventory Reports - Exclude Admin role */}
+          {roleName !== "Admin" && (
+            <Route path="/invReports" element={<InvReportsMain />}>
+              <Route path="goodsIssue" element={<GoodsIssueReport />} />
+              <Route path="igp" element={<IgpReport />} />
+              <Route path="ogp" element={<OgpReport />} />
+              <Route path="asset" element={<AssetReport />} />
+              <Route path="stock" element={<StockReport />} />
+            </Route>
+          )}
 
-            {/* Accounting Routes - Common for all */}
-          <Route path="/accounting/dashboard" element={<AccountingDashboard />} />
-          <Route path="/accounting/vendor-ledger" element={<VendorLedger />} />
-          <Route path="/accounting/trial-balance" element={<TrialBalance />} />
-          <Route path="/accounting/payment-register" element={<PaymentRegister />} />
-          <Route path="/accounting/tally-integration" element={<TallyIntegrationReport />} />
+          {/* Accounting Routes - Exclude Admin role */}
+          {roleName !== "Admin" && (
+            <>
+              <Route path="/accounting/dashboard" element={<AccountingDashboard />} />
+              <Route path="/accounting/vendor-ledger" element={<VendorLedger />} />
+              <Route path="/accounting/trial-balance" element={<TrialBalance />} />
+              <Route path="/accounting/payment-register" element={<PaymentRegister />} />
+              <Route path="/accounting/tally-integration" element={<TallyIntegrationReport />} />
+              <Route path="/procurement/contingencyPurchase" element={<ContingencyPurchase />} />
+              <Route path="/procurement/paymentVoucher/Invoice" element={<Invoice />} />
+              <Route path="/inventory/goodsTransfer" element={<Form17 />} />
+            </>
+          )}
 
-
-           <Route path="/procurement/contingencyPurchase" element={<ContingencyPurchase />} />
-           <Route path="/procurement/paymentVoucher/Invoice" element={<Invoice />} />
-           <Route path="/inventory/goodsTransfer" element={<Form17 />} />
-          {/* Role-based routes only for roleId 1 */}
+          {/* Role-based routes */}
           {generateRoutes(roleName)}
         </Route>
 

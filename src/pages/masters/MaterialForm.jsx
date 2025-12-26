@@ -28,6 +28,7 @@ import dayjs from "dayjs";
 import TextAreaComponent from "../../components/DKG_TextAreaComponent";
 import axios from "axios";
 import ImageUploadBase64 from "../../components/ImageUploadBas64";
+import { useLOVValues } from "../../hooks/useLOVValues";
 
 const MaterialForm = ({materialCode}) => {
   const auth = useSelector((state) => state.auth);
@@ -47,11 +48,17 @@ const MaterialForm = ({materialCode}) => {
   const [loading, setLoading] = useState(false);
   const [showMaterialCodePopup, setShowMaterialCodePopup] = useState(false);
   const [generatedMaterialCode, setGeneratedMaterialCode] = useState("");
- const [uploadedFiles, setUploadedFiles] = useState([]); 
+ const [uploadedFiles, setUploadedFiles] = useState([]);
  const [selectedMaterialCode, setSelectedMaterialCode] = useState(null);
 
- 
+
    const [materialStatus, setMaterialStatus] = useState("");
+
+  // ✅ Fetch dropdown values from LOV system (Form ID: 6 - MaterialMaster)
+  const { lovValues: categoryLOV, loading: loadingCategory } = useLOVValues(6, 'category');
+  const { lovValues: subcategoryLOV, loading: loadingSubcategory } = useLOVValues(6, 'subcategory');
+  const { lovValues: uomLOV, loading: loadingUom } = useLOVValues(6, 'uom');
+  const { lovValues: currencyLOV, loading: loadingCurrency } = useLOVValues(6, 'currency');
 
   useEffect(() => {
     if (materialCode) {
@@ -556,14 +563,15 @@ options={Array.isArray(materialList) ? materialList : []}
               { required: true, message: "Please select material category!" },
             ]}
           >
-            <Select placeholder="Select Material Category">
-              {/*materialCategories.map((category) => (
-                <Option key={category} value={category}>
-                  {category}
+            <Select placeholder="Select Material Category" loading={loadingCategory}>
+              {(categoryLOV.length > 0 ? categoryLOV : [
+                { lovValue: "Capital", lovDisplayValue: "Capital" },
+                { lovValue: "Consumable", lovDisplayValue: "Consumable" }
+              ]).map((item) => (
+                <Option key={item.lovId || item.lovValue} value={item.lovValue}>
+                  {item.lovDisplayValue}
                 </Option>
-              ))*/}
-              <Option value="Capital">Capital</Option>
-              <Option value="Consumable">Consumable</Option>
+              ))}
             </Select>
           </Form.Item>
 
@@ -577,23 +585,24 @@ options={Array.isArray(materialList) ? materialList : []}
               },
             ]}
           >
-            <Select placeholder="Select Material Subcategory">
-              {/*materialSubcategories.map((subCat) => (
-                <Option key={subCat} value={subCat}>
-                  {subCat}
+            <Select placeholder="Select Material Subcategory" loading={loadingSubcategory}>
+              {(subcategoryLOV.length > 0 ? subcategoryLOV : [
+                { lovValue: "Chemicals", lovDisplayValue: "Chemicals" },
+                { lovValue: "Computer & Peripherals", lovDisplayValue: "Computer & Peripherals" },
+                { lovValue: "Electrical", lovDisplayValue: "Electrical" },
+                { lovValue: "Electronic Items", lovDisplayValue: "Electronic Items" },
+                { lovValue: "Equipment", lovDisplayValue: "Equipment" },
+                { lovValue: "Furniture", lovDisplayValue: "Furniture" },
+                { lovValue: "HARDWARE", lovDisplayValue: "HARDWARE" },
+                { lovValue: "Miscellaneous", lovDisplayValue: "Miscellaneous" },
+                { lovValue: "Software", lovDisplayValue: "Software" },
+                { lovValue: "Stationary", lovDisplayValue: "Stationary" },
+                { lovValue: "Vehicles", lovDisplayValue: "Vehicles" }
+              ]).map((item) => (
+                <Option key={item.lovId || item.lovValue} value={item.lovValue}>
+                  {item.lovDisplayValue}
                 </Option>
-              ))*/}
-              <Option value="Chemicals">Chemicals</Option>
-              <Option value="Computer & Peripherals">Computer & Peripherals</Option>
-              <Option value="Electrical">Electrical</Option>
-              <Option value="Electronic Items">Electronic Items</Option>
-              <Option value="Equipment">Equipment</Option>
-              <Option value="Furniture">Furniture</Option>
-              <Option value="HARDWARE">HARDWARE</Option>
-              <Option value="Miscellaneous">Miscellaneous</Option>
-              <Option value="Software">Software</Option>
-              <Option value="Stationary">Stationary</Option>
-              <Option value="Vehicles">Vehicles</Option>
+              ))}
             </Select>
           </Form.Item>
            <Form.Item label="Description" name="description" required>
@@ -611,12 +620,13 @@ options={Array.isArray(materialList) ? materialList : []}
             <Select
               placeholder="Select Unit of Measure"
               showSearch
+              loading={loadingUom}
               optionFilterProp="children"
               filterOption={(input, option) =>
                 option.children.toLowerCase().includes(input.toLowerCase())
               }
             >
-              {uomOptions.map((uom) => (
+              {(uomLOV.length > 0 ? uomLOV.map(lov => ({value: lov.lovValue, label: lov.lovDisplayValue})) : uomOptions).map((uom) => (
                 <Option key={uom.value} value={uom.value}>
                   {uom.label}
                 </Option>
@@ -693,11 +703,17 @@ options={Array.isArray(materialList) ? materialList : []}
             label="Currency"
             rules={[{ required: true }]}
           >
-            <Select placeholder="Select Currency">
-              <Option value="USD">USD</Option>
-              <Option value="INR">INR</Option>
-              <Option value="EUR">EUR</Option>
-              <Option value="GBP">GBP</Option>
+            <Select placeholder="Select Currency" loading={loadingCurrency}>
+              {(currencyLOV.length > 0 ? currencyLOV : [
+                { lovValue: "USD", lovDisplayValue: "USD" },
+                { lovValue: "INR", lovDisplayValue: "INR" },
+                { lovValue: "EUR", lovDisplayValue: "EUR" },
+                { lovValue: "GBP", lovDisplayValue: "GBP" }
+              ]).map((item) => (
+                <Option key={item.lovId || item.lovValue} value={item.lovValue}>
+                  {item.lovDisplayValue}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
 

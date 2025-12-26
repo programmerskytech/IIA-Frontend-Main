@@ -42,24 +42,27 @@ const QueueTable = () => {
         </Col>
       </Row>
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-      {!isRestricted && (
-          <Tabs.TabPane tab="Procurement" key="request">
-            <Queue1/>
-          </Tabs.TabPane>
-        )}
-        <Tabs.TabPane tab="Queue2" key="action">
-          <QueueAction />
-        </Tabs.TabPane>
-
-        {
-          (role === "Indent Creator" || role === "Store Purchase Officer" || role === "Store Person") &&
-          <Tabs.TabPane tab="Inventory" key="inventory">
-          <Queue3 />
-          </Tabs.TabPane>
-        }
-        
-      </Tabs>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          ...(!isRestricted ? [{
+            key: 'request',
+            label: 'Procurement',
+            children: <Queue1 />,
+          }] : []),
+          {
+            key: 'action',
+            label: 'Queue2',
+            children: <QueueAction />,
+          },
+          ...((role === "Indent Creator" || role === "Store Purchase Officer" || role === "Store Person") ? [{
+            key: 'inventory',
+            label: 'Inventory',
+            children: <Queue3 />,
+          }] : []),
+        ]}
+      />
     </div>
   );
 };

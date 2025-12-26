@@ -69,7 +69,7 @@ const QueueModal = ({
       footer={null}
       width={1000}
       className="custom-modal"
-      bodyStyle={{ padding: "24px 24px 8px" }}
+      styles={{ body: { padding: "24px 24px 8px" } }}
     >
       {detailsData ? (
         <>

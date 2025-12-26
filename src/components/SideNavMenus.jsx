@@ -101,236 +101,56 @@ export const commonMenu = [
     ],
   },
 ];
-// Add this complete Admin menu BEFORE the sidebarMenus export
+// ✅ ADMIN PANEL ONLY - Restricted menu for Admin role
 const adminMenuItems = [
   {
-    key: "1",
-    icon: <DashboardOutlined />,
-    label: "Dashboard",
-    path: "/",
-  },
-  {
-    key: "2",
-    icon: <UsergroupAddOutlined />,
-    label: "Queue",
-    path: "/queue",
-  },
-  {
-    key: "3",
-    icon: <FileTextOutlined />,
-    label: "Reports",
-    path: "/reports",
-  },
-  {
-    key: "6",
-    icon: <FileTextOutlined />,
-    label: "Inventory Reports",
-    path: "/invReports",
-  },
-  {
-    key: "7",
-    icon: <MoneyCollectOutlined />,
-    label: "Contingency Purchase",
-    path: "/procurement/contingencyPurchase",
-  },
-  {
-    key: "9",
-    icon: <MoneyCollectOutlined />,
-    label: "Payment Voucher",
-    path: "/procurement/PaymentVoucher/Invoice",
-  },
-  {
-    key: "accounting",
-    icon: <BankOutlined />,
-    label: "Accounting",
-    items: [
-      {
-        key: "vendor-ledger",
-        icon: <UserOutlined />,
-        label: "Vendor Ledgers",
-        path: "/accounting/vendor-ledger",
-      },
-      {
-        key: "tally-integration",
-        icon: <FileTextOutlined />,
-        label: "Tally Integration",
-        path: "/accounting/tally-integration",
-      },
-      {
-        key: "payment-register",
-        icon: <CalendarOutlined />,
-        label: "Payment Register",
-        path: "/accounting/payment-register",
-      },
-    ],
-  },
-  {
-    key: "procurement",
-    label: "Procurement",
-    items: [
-      {
-        key: "indent-submenu",
-        label: "Indent",
-        items: [
-          {
-            key: "indent-creation",
-            icon: <FileAddOutlined />,
-            label: "Indent Creation",
-            path: "/procurement/indent/creation",
-          },
-          {
-            key: "indent-modification",
-            icon: <FileExclamationOutlined />,
-            label: "Indent Modification",
-            path: "/procurement/indent/modification",
-          },
-        ],
-      },
-      {
-        key: "tender-submenu",
-        label: "Tender",
-        items: [
-          {
-            key: "tender-request",
-            icon: <FileExclamationOutlined />,
-            label: "Tender Request",
-            path: "/procurement/tender/request",
-          },
-          {
-            key: "tender-evaluation",
-            icon: <FileTextOutlined />,
-            label: "Tender Evaluation",
-            path: "/procurement/tender/evaluation",
-          },
-          {
-            key: "tender-gem-evaluation",
-            icon: <FileTextOutlined />,
-            label: "Gem Tender Evaluation",
-            path: "/procurement/tender/gem",
-          },
-          {
-            key: "tender-quotations",
-            icon: <FileTextOutlined />,
-            label: "Quotations",
-            path: "/procurement/tender/Quotations",
-          },
-        ],
-      },
-      {
-        key: "purchase-order",
-        icon: <MoneyCollectOutlined />,
-        label: "Purchase Order (PO)",
-        path: "/procurement/purchaseOrder",
-      },
-      {
-        key: "service-order",
-        icon: <MoneyCollectOutlined />,
-        label: "Service Order",
-        path: "/procurement/serviceOrder",
-      },
-      {
-        key: "job-creation",
-        icon: <FileAddOutlined />,
-        label: "Job Creation",
-        path: "/procurement/jobCreation",
-      },
-      {
-        key: "work-creation",
-        icon: <FileAddOutlined />,
-        label: "Work Creation",
-        path: "/procurement/workCreation",
-      },
-      {
-        key: "delivery-tracking",
-        icon: <FileTextOutlined />,
-        label: "Delivery Tracking",
-        path: "/procurement/deliveryTracking",
-      },
-    ],
-  },
-  {
-    key: "inventory",
-    label: "Inventory",
-    items: [
-      {
-        key: "gprn",
-        icon: <GoldOutlined />,
-        label: "GPRN",
-        path: "/inventory/gprn",
-      },
-      {
-        key: "goods-inspection",
-        icon: <CheckSquareOutlined />,
-        label: "Goods Inspection",
-        path: "/inventory/goodsInspection",
-      },
-      {
-        key: "goods-return",
-        icon: <RollbackOutlined />,
-        label: "Goods Return",
-        path: "/inventory/goodsReturn",
-      },
-      {
-        key: "goods-receipt",
-        icon: <ReconciliationOutlined />,
-        label: "Goods Receipt and Inspection",
-        path: "/inventory/goodsReceipt",
-      },
-      {
-        key: "asset-master",
-        icon: <ApartmentOutlined />,
-        label: "Asset Master",
-        path: "/inventory/assetMaster",
-      },
-      {
-        key: "goods-issue",
-        icon: <MdOutlineAddBox />,
-        label: "Goods Issue",
-        path: "/inventory/goodsIssue",
-      },
-      {
-        key: "goods-transfer",
-        icon: <BiTransferAlt />,
-        label: "Goods Transfer",
-        path: "/inventory/goodsTransfer",
-      },
-      {
-        key: "material-disposal",
-        icon: <TiFolderDelete />,
-        label: "Material Disposal",
-        path: "/inventory/materialDisposal",
-      },
-      {
-        key: "asset-auction",
-        icon: <TiFolderDelete />,
-        label: "Asset Auction",
-        path: "/inventory/ForDisposalAssets",
-      },
-      {
-        key: "outward-gate-pass",
-        icon: <CiPassport1 />,
-        label: "Outward Gate Pass",
-        path: "/inventory/outward",
-      },
-      {
-        key: "inward-gate-pass",
-        icon: <CiPassport1 />,
-        label: "Inward Gate Pass",
-        path: "/inventory/inward",
-      },
-      {
-        key: "demand-issue",
-        icon: <GoIssueReopened />,
-        label: "Demand and Issue",
-        path: "/inventory/demandIssue",
-      },
-    ],
-  },
-  {
-    key: "masters",
+    key: "admin-panel",
     icon: <MdOutlineSettings />,
-    label: "Masters",
-    path: "/masters",
+    label: "Admin Panel",
+    items: [
+      {
+        key: "admin-dashboard",
+        icon: <DashboardOutlined />,
+        label: "Admin Dashboard",
+        path: "/admin",
+      },
+      {
+        key: "admin-lov",
+        icon: <FileTextOutlined />,
+        label: "List of Values",
+        path: "/admin/lov",
+      },
+      {
+        key: "admin-approvers",
+        icon: <CheckSquareOutlined />,
+        label: "Approval Workflow",
+        path: "/admin/approvers",
+      },
+      {
+        key: "admin-projects",
+        icon: <ApartmentOutlined />,
+        label: "Projects",
+        path: "/admin/projects",
+      },
+      {
+        key: "admin-budget",
+        icon: <MoneyCollectOutlined />,
+        label: "Budget",
+        path: "/admin/budget",
+      },
+      {
+        key: "admin-employee",
+        icon: <UserOutlined />,
+        label: "Employee Registration",
+        path: "/admin/employee",
+      },
+      {
+        key: "admin-user",
+        icon: <UsergroupAddOutlined />,
+        label: "User Creation",
+        path: "/admin/user",
+      },
+    ],
   },
 ];
 
@@ -355,7 +175,7 @@ export const sidebarMenus = {
           ],
         },
          {
-            key: "4.1",
+            key: "4.2",
             label: "Tender",
             items:[
                  {
@@ -611,33 +431,33 @@ export const sidebarMenus = {
             label: "Tender",
             items:[
                 {
-                    key: "4.2.1",
+                    key: "4.1.1",
                     icon: <FileExclamationOutlined />,
                     label: "Tender Request",
                     path: "/procurement/tender/request",
                 },
                  {
-                    key: "2.2.2",
+                    key: "4.1.2",
                     icon: <FileTextOutlined />,
                     label: "Tender Evaluation",
                     path: "/procurement/tender/evaluation",
                 },
                  {
-                    key: "2.2.3",
+                    key: "4.1.3",
                     icon: <FileTextOutlined />,
                     label: "Gem Tender Evaluation",
                     path: "/procurement/tender/gem",
-                },  
+                },
             ]
         },
           {
-            key: "4.7.1",
+            key: "4.2",
             icon: <MoneyCollectOutlined />,
             label: "Purchase Order",
             path: "/procurement/purchaseOrder",
           },
            {
-            key: "4.7.2",
+            key: "4.3",
             icon: <MoneyCollectOutlined />,
             label: "Service Order",
             path: "/procurement/serviceOrder",
@@ -658,12 +478,12 @@ export const sidebarMenus = {
       label: "Procurement",
       items: [
           {
-            key: "4.7.1",
+            key: "4.1",
             icon: <MoneyCollectOutlined />,
             label: "Purchase Order",
             path: "/procurement/purchaseOrder",
           },
-          
+
       ],
     },
   ],
@@ -678,26 +498,26 @@ export const sidebarMenus = {
             label: "Tender",
             items:[
                 {
-                    key: "4.2.1",
+                    key: "4.1.1",
                     icon: <FileExclamationOutlined />,
                     label: "Tender Request",
                     path: "/procurement/tender/request",
                 },
                  {
-                    key: "2.2.2",
+                    key: "4.1.2",
                     icon: <FileTextOutlined />,
                     label: "Tender Evaluation",
                     path: "/procurement/tender/evaluation",
                 },
                  {
-                    key: "2.2.3",
+                    key: "4.1.3",
                     icon: <FileTextOutlined />,
                     label: "Gem Tender Evaluation",
                     path: "/procurement/tender/gem",
-                },  
+                },
             ]
         },
-        
+
       ],
     },
   ],
@@ -708,7 +528,7 @@ export const sidebarMenus = {
       label: "Procurement",
       items: [
            {
-            key: "4.7.2",
+            key: "4.1",
             icon: <MoneyCollectOutlined />,
             label: "Service Order",
             path: "/procurement/serviceOrder",

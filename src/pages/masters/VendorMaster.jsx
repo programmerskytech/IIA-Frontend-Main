@@ -7,6 +7,7 @@ import axios from "axios";
 import { Country, State, City } from "country-state-city";
 import FormContainer from "../../components/DKG_FormContainer";
 import Heading from "../../components/DKG_Heading";
+import { useLOVValues } from "../../hooks/useLOVValues";
 
 const { Option } = Select;
 
@@ -28,6 +29,9 @@ const VendorMasterForm = () => {
 
   // 🔐 Only Store Purchase Officer can edit
   const canEdit = auth.role === "Store Purchase Officer";
+
+  // ✅ Fetch dropdown values from LOV system (Form ID: 7 - VendorMaster)
+  const { lovValues: primaryBusinessLOV, loading: loadingPrimaryBusiness } = useLOVValues(7, 'primaryBusiness');
 
   // Load all countries
   useEffect(() => {
@@ -379,25 +383,27 @@ const VendorMasterForm = () => {
               { required: true, message: "Primary Business is required" },
             ]}
           >
-            <Select disabled={!canEdit} placeholder="Select Primary Business">
-              <Option value="Chemicals">Chemicals</Option>
-              <Option value="Computers & Peripherals">
-                Computers & Peripherals
-              </Option>
-              <Option value="Electricals">Electricals</Option>
-              <Option value="Electronics">Electronics</Option>
-              <Option value="Optics">Optics</Option>
-              <Option value="Fabrication">Fabrication</Option>
-              <Option value="Furniture">Furniture</Option>
-              <Option value="Hardware">Hardware</Option>
-              <Option value="Instrument/ Equipment & Machinery">
-                Instrument/ Equipment & Machinery
-              </Option>
-              <Option value="Software">Software</Option>
-              <Option value="Vehicles">Vehicles</Option>
-              <Option value="Stationary">Stationary</Option>
-              <Option value="Miscellaneous">Miscellaneous</Option>
-              <Option value="Services">Services</Option>
+            <Select disabled={!canEdit} placeholder="Select Primary Business" loading={loadingPrimaryBusiness}>
+              {(primaryBusinessLOV.length > 0 ? primaryBusinessLOV : [
+                { lovValue: "Chemicals", lovDisplayValue: "Chemicals" },
+                { lovValue: "Computers & Peripherals", lovDisplayValue: "Computers & Peripherals" },
+                { lovValue: "Electricals", lovDisplayValue: "Electricals" },
+                { lovValue: "Electronics", lovDisplayValue: "Electronics" },
+                { lovValue: "Optics", lovDisplayValue: "Optics" },
+                { lovValue: "Fabrication", lovDisplayValue: "Fabrication" },
+                { lovValue: "Furniture", lovDisplayValue: "Furniture" },
+                { lovValue: "Hardware", lovDisplayValue: "Hardware" },
+                { lovValue: "Instrument/ Equipment & Machinery", lovDisplayValue: "Instrument/ Equipment & Machinery" },
+                { lovValue: "Software", lovDisplayValue: "Software" },
+                { lovValue: "Vehicles", lovDisplayValue: "Vehicles" },
+                { lovValue: "Stationary", lovDisplayValue: "Stationary" },
+                { lovValue: "Miscellaneous", lovDisplayValue: "Miscellaneous" },
+                { lovValue: "Services", lovDisplayValue: "Services" }
+              ]).map((item) => (
+                <Option key={item.lovId || item.lovValue} value={item.lovValue}>
+                  {item.lovDisplayValue}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
 

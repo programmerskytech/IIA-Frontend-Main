@@ -7,7 +7,7 @@ const countryOptions = countryNames.map((country) => ({
   value: country,
 }));
 
-export const CpDetails =(formData = {}) => [
+export const CpDetails =(formData = {}, lovData = {}) => [
    {
             heading: "Search Indent",
             colCnt: 2,
@@ -128,13 +128,18 @@ export const CpDetails =(formData = {}) => [
       type: "select",
       required: true,
       span: 2,
-      options: [
-        { label: "Nil", value: "0" },
-        { label: "5%", value: "5" },
-        { label: "12%", value: "12" },
-        { label: "18%", value: "18" },
-        { label: "28%", value: "28" }
-      ]
+      options: lovData.gstPercentageLOV?.length > 0
+        ? lovData.gstPercentageLOV.map(lov => ({
+            label: lov.lovDisplayValue,
+            value: lov.lovValue
+          }))
+        : [
+          { label: "Nil", value: "0" },
+          { label: "5%", value: "5" },
+          { label: "12%", value: "12" },
+          { label: "18%", value: "18" },
+          { label: "28%", value: "28" }
+        ]
     },
     {
       name: "budgetCode",
@@ -142,32 +147,40 @@ export const CpDetails =(formData = {}) => [
       type: "select",
       required: true,
       span: 2,
-      options: [
-        {
-          value: "Capital",
-          label: "Capital",
-        },
-        {
-          value: "Consumable",
-          label: "Consumable",
-        },
-        {
-          value: "Instrument and Accessories",
-          label: "Instrument and Accessories",
-        },
-      ],
+      options: lovData.budgetCodeLOV?.length > 0
+        ? lovData.budgetCodeLOV.map(lov => ({
+            label: lov.lovDisplayValue,
+            value: lov.lovValue
+          }))
+        : [
+          { value: "Capital", label: "Capital" },
+          { value: "Consumable", label: "Consumable" },
+          { value: "Instrument and Accessories", label: "Instrument and Accessories" },
+        ],
     },
     {
       name: "materialCategory",
       label: "Material Category",
-      type: "text",
+      type: lovData.materialCategoryLOV?.length > 0 ? "select" : "text",
       span: 2,
+      options: lovData.materialCategoryLOV?.length > 0
+        ? lovData.materialCategoryLOV.map(lov => ({
+            label: lov.lovDisplayValue,
+            value: lov.lovValue
+          }))
+        : undefined
     },
     {
       name: "materialSubCategory",
       label: "Material Sub Category",
-      type: "text",
+      type: lovData.materialSubCategoryLOV?.length > 0 ? "select" : "text",
       span: 2,
+      options: lovData.materialSubCategoryLOV?.length > 0
+        ? lovData.materialSubCategoryLOV.map(lov => ({
+            label: lov.lovDisplayValue,
+            value: lov.lovValue
+          }))
+        : undefined
     },
    /* {
       name: "modeOfProcurement",
@@ -211,7 +224,12 @@ export const CpDetails =(formData = {}) => [
       type: "select",
       required: true,
       span: 2,
-      options: countryOptions, 
+      options: lovData.countryOfOriginLOV?.length > 0
+        ? lovData.countryOfOriginLOV.map(lov => ({
+            label: lov.lovDisplayValue,
+            value: lov.lovValue
+          }))
+        : countryOptions,
     }
   ],
 },
@@ -241,10 +259,15 @@ export const CpDetails =(formData = {}) => [
       label: "Payment To",
       type: "select",
       required: true,
-      options: [
-        { label: "Vendor", value: "vendor" },
-        { label: "Employee", value: "employee" }
-      ]
+      options: lovData.paymentToLOV?.length > 0
+        ? lovData.paymentToLOV.map(lov => ({
+            label: lov.lovDisplayValue,
+            value: lov.lovValue
+          }))
+        : [
+          { label: "Vendor", value: "vendor" },
+          { label: "Employee", value: "employee" }
+        ]
     },
     ...(formData.paymentTo === "vendor" ? [
       {

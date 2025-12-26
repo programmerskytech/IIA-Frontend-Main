@@ -10,6 +10,7 @@ import ButtonContainer from '../../../components/ButtonContainer';
 import CustomModal from '../../../components/CustomModal';
 import { CpDetails } from './InputFields';
 import { useMemo } from 'react';
+import { useLOVValues } from '../../../hooks/useLOVValues';
 
 
 const { Option } = Select;
@@ -39,6 +40,14 @@ const ContingencyPurchase = () => {
 
   // Form data state
   const [formData, setFormData] = useState({ materialDetails: [{}] });
+
+  // ✅ Fetch dropdown values from LOV system (Form ID: 2 - ContingencyPurchase)
+  const { lovValues: gstPercentageLOV, loading: loadingGst } = useLOVValues(2, 'gstPercentage');
+  const { lovValues: paymentToLOV, loading: loadingPaymentTo } = useLOVValues(2, 'paymentTo');
+  const { lovValues: budgetCodeLOV, loading: loadingBudgetCode } = useLOVValues(2, 'budgetCode');
+  const { lovValues: materialCategoryLOV, loading: loadingMaterialCategory } = useLOVValues(2, 'materialCategory');
+  const { lovValues: materialSubCategoryLOV, loading: loadingMaterialSubCategory } = useLOVValues(2, 'materialSubCategory');
+  const { lovValues: countryOfOriginLOV, loading: loadingCountryOfOrigin } = useLOVValues(2, 'countryOfOrigin');
 
   // --- Dynamic Field Population ---
   const populateDropdowns = async () => {
@@ -465,7 +474,17 @@ const hydratedCpDetails = useMemo(() => {
 }, [formData,CpDetails, projects, vendors, materialOptions, materialDescOptions]); // <- Dependencies
 */
 const hydratedCpDetails = useMemo(() => {
-  return CpDetails(formData).map(section => {  // Call the function here
+  // ✅ Pass LOV values to CpDetails
+  const lovData = {
+    gstPercentageLOV,
+    paymentToLOV,
+    budgetCodeLOV,
+    materialCategoryLOV,
+    materialSubCategoryLOV,
+    countryOfOriginLOV
+  };
+
+  return CpDetails(formData, lovData).map(section => {  // Call the function here
     if (section.fieldList) {
       return {
         ...section,
@@ -495,7 +514,7 @@ const hydratedCpDetails = useMemo(() => {
 
     return section;
   });
-}, [formData, projects, vendors, materialOptions, materialDescOptions, employees,cpIdDropdown]);
+}, [formData, projects, vendors, materialOptions, materialDescOptions, employees, cpIdDropdown, gstPercentageLOV, paymentToLOV, budgetCodeLOV, materialCategoryLOV, materialSubCategoryLOV, countryOfOriginLOV]);
 
 
 
