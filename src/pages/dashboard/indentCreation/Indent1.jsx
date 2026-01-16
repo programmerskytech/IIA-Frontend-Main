@@ -165,18 +165,21 @@ const Indent1 = () => {
     // ✅ NEW: State for department computer price limit
     const [departmentPriceLimit, setDepartmentPriceLimit] = useState(null);
 
-    // ✅ Fetch consignee location values from LOV system (Form ID: 3, Designator: consigneeLocation)
+    // ✅ Fetch consignee location values from LOV system (Form ID: 3 = IndentCreation, Designator: consigneeLocation)
     const { lovValues: consigneeLocationLOV, loading: loadingLocations } = useLOVValues(3, 'consigneeLocation');
 
-    // ✅ Use LOV values if available, otherwise fallback to locationMaster from Redux
+    // ✅ Use LOV values with correct mapping: display lovDisplayValue, send lovValue to backend
+    // ✅ TC_13: Filter out inactive items for regular form dropdowns
     const locationDropdown = consigneeLocationLOV.length > 0
-        ? consigneeLocationLOV.map((item) => ({
-            label: item.lovDisplayValue,
-            value: item.lovValue
-          }))
+        ? consigneeLocationLOV
+            .filter(item => item.isActive === true)  // TC_13: Only show active items in forms
+            .map((item) => ({
+                label: item.lovDisplayValue,  // Show "Bangalore" in dropdown
+                value: item.lovValue          // Send "BANGALORE" to backend
+            }))
         : locationMaster.map((item) => ({
             label: item.locationName,
-            value: item.locationCode
+            value: item.locationName
           }))
 
     const projectDropdown = projectMaster.map((item) => {

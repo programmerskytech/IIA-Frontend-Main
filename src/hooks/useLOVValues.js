@@ -70,17 +70,15 @@ export const useLOVValues = (formId, designatorName) => {
         lovValue: lov.lovValue || lov.value,
         lovDisplayValue: lov.lovDisplayValue || lov.displayValue || lov.lovValue,
         displayOrder: lov.displayOrder,
-        isActive: lov.isActive,
+        isActive: lov.isActive !== false, // Default to true if not specified
         isDefault: lov.isDefault
       }));
 
-      // Filter only active values and sort by display order
-      const activeLOVs = mappedValues
-        .filter(lov => lov.isActive !== false)
-        .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      // Sort by display order but DON'T filter inactive items (backend returns all)
+      const allLOVs = mappedValues.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-      console.log(`✅ Loaded ${activeLOVs.length} active LOV values for ${designatorName}`);
-      setLovValues(activeLOVs);
+      console.log(`✅ Loaded ${allLOVs.length} LOV values for ${designatorName} (including inactive)`);
+      setLovValues(allLOVs);
 
     } catch (err) {
       console.error(`❌ Error fetching LOV values for ${designatorName}:`, err);
@@ -147,17 +145,15 @@ export const useLOVValuesByFormName = (formName, designatorName) => {
         lovValue: lov.lovValue || lov.value,
         lovDisplayValue: lov.lovDisplayValue || lov.displayValue || lov.lovValue,
         displayOrder: lov.displayOrder,
-        isActive: lov.isActive,
+        isActive: lov.isActive !== false, // Default to true if not specified
         isDefault: lov.isDefault
       }));
 
-      // Filter only active values and sort by display order
-      const activeLOVs = mappedValues
-        .filter(lov => lov.isActive !== false)
-        .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      // Sort by display order but DON'T filter inactive items (backend returns all)
+      const allLOVs = mappedValues.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-      console.log(`✅ Loaded ${activeLOVs.length} active LOV values for ${designatorName}`);
-      setLovValues(activeLOVs);
+      console.log(`✅ Loaded ${allLOVs.length} LOV values for ${designatorName} (including inactive)`);
+      setLovValues(allLOVs);
 
     } catch (err) {
       console.error(`❌ Error fetching LOV values for ${designatorName}:`, err);

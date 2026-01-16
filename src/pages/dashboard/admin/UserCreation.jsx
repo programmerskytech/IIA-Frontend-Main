@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Select, message, Row, Col, Table, Tag, Modal, Descriptions, Divider } from 'antd';
-import { TeamOutlined, EyeInvisibleOutlined, EyeOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, Select, message, Row, Col, Table, Tag, Modal, Descriptions, Divider, AutoComplete, Spin } from 'antd';
+import { TeamOutlined, EyeInvisibleOutlined, EyeOutlined, CheckCircleOutlined, UserOutlined, SearchOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
@@ -16,6 +16,11 @@ const UserCreation = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [createdUser, setCreatedUser] = useState(null);
+  // TC_16: Employee search and validation
+  const [employeeOptions, setEmployeeOptions] = useState([]);
+  const [searchingEmployee, setSearchingEmployee] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [employeeValidated, setEmployeeValidated] = useState(false);
 
   useEffect(() => {
     fetchRoles();
@@ -92,6 +97,91 @@ const UserCreation = () => {
     return Promise.resolve();
   };
 
+  // TC_16: Employee search autocomplete
+  const handleEmployeeSearch = async (searchValue) => {
+    if (!searchValue || searchValue.length < 2) {
+      setEmployeeOptions([]);
+      return;
+    }
+
+    try {
+      setSearchingEmployee(true);
+      const response = await axios.get('/api/employee-department-master/employeeSearch', {
+        params: { keyword: searchValue }
+      });
+
+      if (response.data.responseStatus?.statusCode === 0) {
+        const employees = response.data.responseData || [];
+        const options = employees.map(emp => ({
+          value: emp.employeeId,
+          label: `${emp.employeeId} - ${emp.employeeName} (${emp.departmentName})`,
+          employee: emp
+        }));
+        setEmployeeOptions(options);
+      }
+    } catch (error) {
+      console.error('Employee search error:', error);
+    } finally {
+      setSearchingEmployee(false);
+    }
+  };
+
+  // TC_16: Handle employee selection from autocomplete
+  const handleEmployeeSelect = async (value, option) => {
+    const employee = option.employee;
+    setSelectedEmployee(employee);
+    setEmployeeValidated(true);
+
+    // Auto-fill employee details
+    form.setFieldsValue({
+      employeeId: employee.employeeId,
+      userName: employee.employeeName,
+      email: employee.emailAddress,
+      mobileNumber: employee.phoneNumber
+    });
+
+    // Check if user already exists for this employee
+    try {
+      const response = await axios.get(`/api/employee-department-master/user-exists/${employee.employeeId}`);
+      if (response.data.responseData?.exists) {
+        message.warning(`User already exists for employee ${employee.employeeId}`);
+        setEmployeeValidated(false);
+      } else {
+        message.success(`Employee ${employee.employeeId} selected successfully`);
+      }
+    } catch (error) {
+      console.error('Error checking user existence:', error);
+    }
+  };
+
+  // TC_16: Validate employee ID exists
+  const validateEmployeeId = async (_, value) => {
+    if (!value) {
+      setEmployeeValidated(false);
+      return Promise.resolve(); // Employee ID is optional
+    }
+
+    try {
+      const response = await axios.get(`/api/employee-department-master/${value}`);
+      if (response.data.responseStatus?.statusCode === 0) {
+        const employee = response.data.responseData;
+        if (employee) {
+          setEmployeeValidated(true);
+          setSelectedEmployee(employee);
+          return Promise.resolve();
+        }
+      }
+      setEmployeeValidated(false);
+      return Promise.reject(new Error('Employee ID does not exist. Please register the employee first.'));
+    } catch (error) {
+      setEmployeeValidated(false);
+      if (error.response?.status === 404) {
+        return Promise.reject(new Error('Employee ID does not exist. Please register the employee first.'));
+      }
+      return Promise.reject(new Error('Error validating employee ID'));
+    }
+  };
+
   const handleSubmit = async (values) => {
     try {
       setLoading(true);
@@ -124,10 +214,29 @@ const UserCreation = () => {
         setCreatedUser(userData);
         setSuccessModalVisible(true);
         form.resetFields();
+        setSelectedEmployee(null);
+        setEmployeeValidated(false);
         fetchRecentUsers();
       }
     } catch (error) {
-      message.error(error.response?.data?.message || 'Failed to create user');
+      // TC_16: Handle backend validation errors
+      const errorMessage = error.response?.data?.responseStatus?.message
+        || error.response?.data?.message
+        || 'Failed to create user';
+
+      if (errorMessage.includes('Employee ID does not exist')) {
+        message.error({
+          content: 'Employee ID does not exist in the system. Please register the employee first.',
+          duration: 5
+        });
+      } else if (errorMessage.includes('User already exists')) {
+        message.error({
+          content: 'User already exists for this employee ID.',
+          duration: 5
+        });
+      } else {
+        message.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -257,13 +366,29 @@ const UserCreation = () => {
                 />
               </Form.Item>
 
+              {/* TC_16: Employee ID Autocomplete with validation */}
               <Form.Item
                 label="Employee ID (Optional)"
                 name="employeeId"
-                tooltip="Link this user account to an existing employee"
-                help="Leave empty if not linking to an employee record"
+                tooltip="Search and select an existing employee to link to this user account"
+                help={selectedEmployee ? `Selected: ${selectedEmployee.employeeName} - ${selectedEmployee.departmentName}` : "Start typing employee ID or name to search"}
+                rules={[{ validator: validateEmployeeId }]}
               >
-                <Input placeholder="Enter employee ID (if applicable)" />
+                <AutoComplete
+                  options={employeeOptions}
+                  onSearch={handleEmployeeSearch}
+                  onSelect={handleEmployeeSelect}
+                  placeholder="Search by employee ID or name"
+                  notFoundContent={searchingEmployee ? <Spin size="small" /> : "No employees found"}
+                  suffixIcon={<SearchOutlined />}
+                  allowClear
+                  onClear={() => {
+                    setSelectedEmployee(null);
+                    setEmployeeValidated(false);
+                    setEmployeeOptions([]);
+                  }}
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
 
               <Form.Item

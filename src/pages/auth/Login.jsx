@@ -32,7 +32,13 @@ const Login = () => {
 
         dispatch(fetchMasters());
 
-        navigate('/'); // Navigate after successful login
+        // TC_14: Check if first login and redirect to change password
+        if (userData.isFirstLogin === true) {
+          console.log('First login detected, redirecting to change password...');
+          navigate('/change-password');
+        } else {
+          navigate('/'); // Navigate to dashboard after successful login
+        }
     } catch (error) {
         console.error('Login failed:', error);
     }

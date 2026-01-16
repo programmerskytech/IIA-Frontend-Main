@@ -29,7 +29,6 @@ const ApprovalWorkflow = () => {
   const [editingApprover, setEditingApprover] = useState(null);
   const [editingBranch, setEditingBranch] = useState(null);
   const [activeTab, setActiveTab] = useState('approvers');
-  const [showExamples, setShowExamples] = useState(false);
 
   const conditionTypes = [
     { value: 'DEFAULT', label: 'Default (No conditions)' },
@@ -45,18 +44,108 @@ const ApprovalWorkflow = () => {
     { value: 'COMMITTEE', label: 'Committee-Based' }
   ];
 
+  // Comprehensive configuration examples for each condition type
   const configExamples = {
-    DEFAULT: 'No configuration needed',
-    AMOUNT: '{"minAmount": 50000, "maxAmount": 100000}',
-    CATEGORY: '{"materialCategory": "COMPUTER"}',
-    LOCATION: '{"location": "BANGALORE"}',
-    PROJECT: '{"projectBased": true}',
-    COMPOSITE: '{"projectBased": true, "materialCategory": "COMPUTER", "location": "BANGALORE"}',
-    AMOUNT_WITH_ROLE: '{"role": ["Dean", "Head SEG"], "minAmountHeadSEG": 100000, "minAmountDean": 150000}',
-    AMOUNT_WITH_PROJECT: '{"minAmount": 50000, "projectBased": true, "aboveProjectSanctionLimit": false}',
-    BID_TYPE: '{"bidType": "DOUBLE_BID", "department": "PURCHASE"}',
-    INDENT_COUNT: '{"indentCount": 1}',
-    COMMITTEE: '{"committee": "TECHNO_FINANCIAL"}'
+    DEFAULT: {
+      description: 'No configuration needed. This branch acts as a fallback when no other conditions match.',
+      examples: [
+        { label: 'Default (No Config)', config: null }
+      ]
+    },
+    AMOUNT: {
+      description: 'Route based on indent/order amount. You can set minimum and/or maximum amount thresholds.',
+      examples: [
+        { label: 'Amount Range (50K to 1L)', config: { minAmount: 50000, maxAmount: 100000 } },
+        { label: 'Above 1 Lakh', config: { minAmount: 100000 } },
+        { label: 'Below 50K', config: { maxAmount: 50000 } },
+        { label: 'Above 5 Lakhs', config: { minAmount: 500000 } },
+        { label: 'Between 1L to 5L', config: { minAmount: 100000, maxAmount: 500000 } }
+      ]
+    },
+    CATEGORY: {
+      description: 'Route based on material category type. Choose between COMPUTER or NON_COMPUTER categories.',
+      examples: [
+        { label: 'Computer Category', config: { materialCategory: 'COMPUTER' } },
+        { label: 'Non-Computer Category', config: { materialCategory: 'NON_COMPUTER' } }
+      ]
+    },
+    LOCATION: {
+      description: 'Route based on consignee location. Use specific city names or NON_BANGALORE for other locations.',
+      examples: [
+        { label: 'Bangalore Location', config: { location: 'BANGALORE' } },
+        { label: 'Non-Bangalore Location', config: { location: 'NON_BANGALORE' } },
+        { label: 'Mumbai Location', config: { location: 'MUMBAI' } },
+        { label: 'Delhi Location', config: { location: 'DELHI' } },
+        { label: 'Chennai Location', config: { location: 'CHENNAI' } }
+      ]
+    },
+    PROJECT: {
+      description: 'Route based on whether the indent is under a project or not.',
+      examples: [
+        { label: 'Under Project', config: { projectBased: true } },
+        { label: 'Not Under Project', config: { projectBased: false } }
+      ]
+    },
+    COMPOSITE: {
+      description: 'Combine multiple conditions (AND logic). All conditions must match for this branch to be selected.',
+      examples: [
+        { label: 'Project + Computer + Bangalore', config: { projectBased: true, materialCategory: 'COMPUTER', location: 'BANGALORE' } },
+        { label: 'Project + Non-Computer', config: { projectBased: true, materialCategory: 'NON_COMPUTER' } },
+        { label: 'Non-Project + Bangalore', config: { projectBased: false, location: 'BANGALORE' } },
+        { label: 'Computer + Amount Above 1L', config: { materialCategory: 'COMPUTER', minAmount: 100000 } },
+        { label: 'Project + Computer + Non-Bangalore', config: { projectBased: true, materialCategory: 'COMPUTER', location: 'NON_BANGALORE' } },
+        { label: 'Non-Project + Non-Computer + Mumbai', config: { projectBased: false, materialCategory: 'NON_COMPUTER', location: 'MUMBAI' } }
+      ]
+    },
+    AMOUNT_WITH_ROLE: {
+      description: 'Different amount thresholds for different roles. Useful when approval limits vary by designation.',
+      examples: [
+        { label: 'Role-based Amount Limits', config: { role: ['Dean', 'Head SEG'], minAmountHeadSEG: 100000, minAmountDean: 150000 } },
+        { label: 'Director Approval Above 10L', config: { role: ['Director'], minAmountDirector: 1000000 } },
+        { label: 'Multiple Role Thresholds', config: { role: ['AO', 'Dean', 'Director'], minAmountAO: 50000, minAmountDean: 200000, minAmountDirector: 500000 } }
+      ]
+    },
+    AMOUNT_WITH_PROJECT: {
+      description: 'Combine amount conditions with project-based routing. Check if amount exceeds project sanction limit.',
+      examples: [
+        { label: 'Project Below Sanction Limit', config: { minAmount: 50000, projectBased: true, aboveProjectSanctionLimit: false } },
+        { label: 'Project Above Sanction Limit', config: { minAmount: 50000, projectBased: true, aboveProjectSanctionLimit: true } },
+        { label: 'Non-Project Amount Based', config: { minAmount: 100000, projectBased: false } }
+      ]
+    },
+    BID_TYPE: {
+      description: 'Route based on tender bid type and department.',
+      examples: [
+        { label: 'Double Bid - Purchase', config: { bidType: 'DOUBLE_BID', department: 'PURCHASE' } },
+        { label: 'Single Bid - Purchase', config: { bidType: 'SINGLE_BID', department: 'PURCHASE' } },
+        { label: 'Double Bid - Stores', config: { bidType: 'DOUBLE_BID', department: 'STORES' } },
+        { label: 'Any Bid Type', config: { bidType: 'ANY' } }
+      ]
+    },
+    INDENT_COUNT: {
+      description: 'Route based on number of items/indents in the request.',
+      examples: [
+        { label: 'Single Item Indent', config: { indentCount: 1 } },
+        { label: 'Multiple Items (2+)', config: { indentCount: 2, comparison: 'GTE' } },
+        { label: 'Bulk Order (5+)', config: { indentCount: 5, comparison: 'GTE' } }
+      ]
+    },
+    COMMITTEE: {
+      description: 'Route to specific committee for approval.',
+      examples: [
+        { label: 'Techno-Financial Committee', config: { committee: 'TECHNO_FINANCIAL' } },
+        { label: 'Purchase Committee', config: { committee: 'PURCHASE_COMMITTEE' } },
+        { label: 'Computer Committee', config: { committee: 'COMPUTER_COMMITTEE' } },
+        { label: 'Works Committee', config: { committee: 'WORKS_COMMITTEE' } }
+      ]
+    }
+  };
+
+  // Helper function to get example config as string for placeholder
+  const getExamplePlaceholder = (conditionType) => {
+    if (!conditionType || conditionType === 'DEFAULT') return 'No configuration needed for DEFAULT';
+    const example = configExamples[conditionType]?.examples?.[0];
+    return example?.config ? JSON.stringify(example.config, null, 2) : '{}';
   };
 
   useEffect(() => {
@@ -717,7 +806,6 @@ const ApprovalWorkflow = () => {
         onCancel={() => {
           setBranchModalVisible(false);
           branchForm.resetFields();
-          setShowExamples(false);
         }}
         footer={null}
         width={700}
@@ -753,7 +841,7 @@ const ApprovalWorkflow = () => {
             name="conditionType"
             tooltip="Type of routing condition"
           >
-            <Select placeholder="Select condition type" onChange={() => setShowExamples(true)}>
+            <Select placeholder="Select condition type">
               {conditionTypes.map(ct => (
                 <Option key={ct.value} value={ct.value}>{ct.label}</Option>
               ))}
@@ -767,22 +855,56 @@ const ApprovalWorkflow = () => {
           >
             <TextArea
               rows={4}
-              placeholder={branchForm.getFieldValue('conditionType')
-                ? configExamples[branchForm.getFieldValue('conditionType')]
-                : '{"key": "value"}'
-              }
+              placeholder={getExamplePlaceholder(branchForm.getFieldValue('conditionType'))}
             />
           </Form.Item>
 
-          {showExamples && branchForm.getFieldValue('conditionType') && (
-            <Collapse style={{ marginBottom: '16px' }}>
-              <Panel header={<><InfoCircleOutlined /> View Configuration Examples</>} key="1">
-                <pre style={{ backgroundColor: '#f5f5f5', padding: '12px', borderRadius: '4px', fontSize: '12px', overflow: 'auto' }}>
-                  {JSON.stringify(JSON.parse(configExamples[branchForm.getFieldValue('conditionType')]), null, 2)}
-                </pre>
-              </Panel>
-            </Collapse>
-          )}
+          {/* Dynamic Configuration Examples - Updates when condition type changes */}
+          <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.conditionType !== currentValues.conditionType}>
+            {({ getFieldValue }) => {
+              const conditionType = getFieldValue('conditionType');
+              const exampleData = configExamples[conditionType];
+
+              if (!conditionType || conditionType === 'DEFAULT' || !exampleData) {
+                return null;
+              }
+
+              return (
+                <Collapse style={{ marginBottom: '16px' }} defaultActiveKey={['1']}>
+                  <Panel header={<><InfoCircleOutlined /> View Configuration Examples for {conditionTypes.find(ct => ct.value === conditionType)?.label}</>} key="1">
+                    <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#e6f7ff', borderRadius: '4px', borderLeft: '3px solid #1890ff' }}>
+                      <strong>Description:</strong> {exampleData.description}
+                    </div>
+                    <div style={{ maxHeight: '300px', overflow: 'auto' }}>
+                      {exampleData.examples.map((example, index) => (
+                        <div key={index} style={{ marginBottom: '12px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px', border: '1px solid #d9d9d9' }}>
+                          <div style={{ marginBottom: '8px', fontWeight: 500, color: '#1890ff' }}>
+                            {index + 1}. {example.label}
+                          </div>
+                          <pre style={{ margin: 0, fontSize: '12px', backgroundColor: '#fff', padding: '8px', borderRadius: '4px', overflow: 'auto' }}>
+                            {example.config ? JSON.stringify(example.config, null, 2) : 'null (no configuration needed)'}
+                          </pre>
+                          <Button
+                            type="link"
+                            size="small"
+                            style={{ padding: 0, marginTop: '4px' }}
+                            onClick={() => {
+                              if (example.config) {
+                                branchForm.setFieldsValue({ conditionConfig: JSON.stringify(example.config, null, 2) });
+                                message.success(`Example "${example.label}" copied to configuration`);
+                              }
+                            }}
+                          >
+                            Use this example
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                </Collapse>
+              );
+            }}
+          </Form.Item>
 
           <Form.Item
             label="Display Order"

@@ -818,6 +818,12 @@ const QueueModal = ({
                     <div className="detail-item">
                       <strong>Tender ID:</strong>{" "}
                       {detailsData.tenderId || "N/A"}
+                      {detailsData.tenderVersion && (
+                        <Tag color="blue" style={{marginLeft: 8}}>v{detailsData.tenderVersion}</Tag>
+                      )}
+                      {detailsData.isLocked && (
+                        <Tag color="red" style={{marginLeft: 8}}>🔒 Locked</Tag>
+                      )}
                     </div>
                     <div className="detail-item">
                       <strong>Title:</strong>{" "}
@@ -843,10 +849,44 @@ const QueueModal = ({
                           ? `₹${detailsData.totalTenderValue.toFixed(2)}`
                           : "N/A"}
                       </span>
+                      {detailsData.totalTenderValue > 1000000 && (
+                        <Tag color="purple" style={{marginLeft: 8}}>Enhanced Workflow</Tag>
+                      )}
                     </div>
                   </Col>
                 </Row>
+
+                {/* TC_48: Lock Status Display */}
+                {detailsData.isLocked && (
+                  <div style={{marginTop: 16, padding: 12, backgroundColor: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 4}}>
+                    <strong style={{color: '#cf1322'}}>🔒 Tender Locked</strong>
+                    <p style={{margin: '8px 0 0 0', color: '#595959'}}>{detailsData.lockedReason || 'This tender is locked for editing.'}</p>
+                    {detailsData.lockedForPO && (
+                      <p style={{margin: '4px 0 0 0', fontSize: 12, color: '#8c8c8c'}}>
+                        Locked for: {detailsData.lockedForPO} | Date: {new Date(detailsData.lockedDate).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* TC_46: Update Reason Display */}
+                {detailsData.updateReason && (
+                  <div style={{marginTop: 16, padding: 12, backgroundColor: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: 4}}>
+                    <strong style={{color: '#096dd9'}}>Last Update Reason:</strong>
+                    <p style={{margin: '8px 0 0 0', color: '#595959'}}>{detailsData.updateReason}</p>
+                  </div>
+                )}
               </div>
+
+              {/* TC_43: Project Budget Display for Tenders */}
+              {detailsData.projectCode && (
+                <div style={{ marginBottom: '16px' }}>
+                  <ProjectBudgetDisplay
+                    projectCode={detailsData.projectCode}
+                    indentAmount={detailsData.totalTenderValue}
+                  />
+                </div>
+              )}
 
               <div className="detail-section">
                 <Typography.Title level={5} className="section-title">
@@ -929,7 +969,40 @@ const QueueModal = ({
                   </Col>
                 </Row>
               </div>
-               <div className="detail-section">
+               {/* TC_47: Pre-bid Meeting Display */}
+              {detailsData.preBidMeetingStatus && detailsData.preBidMeetingStatus !== 'NOT_CONDUCTED' && (
+                <div className="detail-section">
+                  <Typography.Title level={5} className="section-title">
+                    <CalendarOutlined /> Pre-bid Meeting
+                  </Typography.Title>
+                  <Row gutter={24}>
+                    <Col span={12}>
+                      <div className="detail-item">
+                        <strong>Status:</strong>{" "}
+                        <Tag color={
+                          detailsData.preBidMeetingStatus === 'CONDUCTED' ? 'green' :
+                          detailsData.preBidMeetingStatus === 'SCHEDULED' ? 'blue' : 'default'
+                        }>
+                          {detailsData.preBidMeetingStatus}
+                        </Tag>
+                      </div>
+                      <div className="detail-item">
+                        <strong>Meeting Date:</strong> {detailsData.preBidMeetingDate || "N/A"}
+                      </div>
+                    </Col>
+                    <Col span={24} style={{marginTop: 12}}>
+                      <div className="detail-item">
+                        <strong>Discussion Points:</strong>
+                        <div style={{marginTop: 8, padding: 12, backgroundColor: '#fafafa', borderRadius: 4, whiteSpace: 'pre-wrap'}}>
+                          {detailsData.preBidMeetingDiscussion || "No discussion points recorded."}
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+              )}
+
+              <div className="detail-section">
                 <Row gutter={24}>
                   <Col span={12}>
                     <Typography.Title level={5} className="section-title">

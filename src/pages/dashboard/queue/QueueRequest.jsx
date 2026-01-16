@@ -1155,7 +1155,20 @@ const fetchEmployees = () => {
       key: "amount",
       render: (_, record) => {
         const amount = getCommonField(record.workflowId, record, "amount");
-        return amount ? `₹${amount}` : "-";
+        if (!amount) return "-";
+
+        // TC_52: Highlight tenders >10 lakh with enhanced workflow indicator
+        const isTender = [4, 7].includes(parseInt(record.workflowId, 10));
+        const isHighValue = parseFloat(amount) > 1000000;
+
+        return (
+          <span>
+            ₹{amount}
+            {isTender && isHighValue && (
+              <Tag color="purple" style={{marginLeft: 4, fontSize: 10}}>Enhanced</Tag>
+            )}
+          </span>
+        );
       },
     },
     {

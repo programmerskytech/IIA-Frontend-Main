@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Select, DatePicker, message, Row, Col, Divider, Modal, Descriptions, Tag } from 'antd';
-import { UserOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, Select, DatePicker, message, Row, Col, Divider, Modal, Descriptions, Tag, Tabs } from 'antd';
+import { UserOutlined, CheckCircleOutlined, SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useLOVValues } from '../../../hooks/useLOVValues';
+import AdvancedEmployeeSearch from '../../../components/AdvancedEmployeeSearch'; // TC_15
 
 const { Option } = Select;
 
@@ -80,12 +81,35 @@ const EmployeeRegistration = () => {
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <UserOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
-            <span>Employee Registration</span>
+            <span>Employee Management</span>
           </div>
         }
         bordered={false}
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        {/* TC_15: Add tabs for Search and Register */}
+        <Tabs
+          defaultActiveKey="search"
+          items={[
+            {
+              key: 'search',
+              label: (
+                <span>
+                  <SearchOutlined />
+                  Search Employees
+                </span>
+              ),
+              children: <AdvancedEmployeeSearch />
+            },
+            {
+              key: 'register',
+              label: (
+                <span>
+                  <PlusOutlined />
+                  Register New Employee
+                </span>
+              ),
+              children: (
+                <Form form={form} layout="vertical" onFinish={handleSubmit}>
           {/* Personal Information Section */}
           <div style={{ marginBottom: '24px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', color: '#1890ff' }}>
@@ -300,6 +324,10 @@ const EmployeeRegistration = () => {
             </div>
           </Form.Item>
         </Form>
+              )
+            }
+          ]}
+        />
       </Card>
 
       {/* Success Modal */}

@@ -428,6 +428,25 @@ const Tender = () => {
   */
   const onFinish = async () => {
   try {
+    // TC_48: Check if tender is locked
+    if (formData.isLocked && tenderId) {
+      message.error({
+        content: `This tender is locked. ${formData.lockedReason || 'Cannot update tender after Purchase Order has been created.'}`,
+        duration: 5
+      });
+      return;
+    }
+
+    // TC_46: Prompt for update reason when updating
+    if (tenderId) {
+      const updateReason = prompt("Please enter the reason for updating this tender:");
+      if (!updateReason || updateReason.trim() === "") {
+        message.warning("Update reason is required when modifying a tender.");
+        return;
+      }
+      formData.updateReason = updateReason.trim();
+    }
+
     setSubmitBtnLoading(true);
 
     const payload = {
@@ -468,7 +487,10 @@ const Tender = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       data = response.data;
-      message.success("Tender updated successfully");
+      message.success({
+        content: `Tender updated successfully to version ${data?.responseData?.tenderVersion || 'N/A'}. Vendors have been notified.`,
+        duration: 5
+      });
     } else {
       //Create
       const response = await axios.post("/api/tender-requests", payload, {
@@ -484,7 +506,12 @@ const Tender = () => {
       setModalOpen(true);
     }
   } catch (error) {
-    message.error("Failed to submit tender");
+    // TC_48 & TC_50: Handle lock and validation errors
+    const errorMessage = error?.response?.data?.errorMessage || error?.response?.data?.responseStatus?.message || "Failed to submit tender";
+    message.error({
+      content: errorMessage,
+      duration: 7
+    });
     console.error("Tender submit error:", error);
   } finally {
     setSubmitBtnLoading(false);
@@ -569,7 +596,7 @@ console.log("uday"+formData.buyBack);
 
   const TenderDetails = [
       {
-            heading: "Search Indent",
+            heading: "Search Tender",
             colCnt: 2,
             fieldList: [
         {
@@ -594,21 +621,38 @@ console.log("uday"+formData.buyBack);
       }]
     },
      {
-        heading: "Status",
-        colCnt:2,
+        heading: "Status & Version",
+        colCnt:4,
         fieldList:[
             ...(searchDone ? [
     {
         name: "processStage",
         label: "Process Stage",
         type: "text",
-        disabled: true
+        disabled: true,
+        span: 1
     },
     {
         name: "status",
         label: "Status",
         type: "text",
-        disabled: true
+        disabled: true,
+        span: 1
+    },
+    {
+        name: "tenderVersion",
+        label: "Tender Version",
+        type: "text",
+        disabled: true,
+        span: 1
+    },
+    {
+        name: "isLocked",
+        label: "Locked Status",
+        type: "text",
+        disabled: true,
+        span: 1,
+        render: (value) => value ? "🔒 Locked" : "Unlocked"
     }
 ] : [])
         ]
@@ -808,7 +852,7 @@ console.log("uday"+formData.buyBack);
           options: [
             { value: "Single", label: "Single Bid" },
             { value: "Double", label: "Two Bid" }
-          ] 
+          ]
         },
        /* {
           name: "lastDate",
@@ -824,6 +868,39 @@ console.log("uday"+formData.buyBack);
         //  required: true,
           span: 1
         }*/
+      ]
+    },
+    {
+      heading: "Pre-bid Meeting Details (TC_47)",
+      colCnt: 3,
+      fieldList: [
+        {
+          name: "preBidMeetingStatus",
+          label: "Pre-bid Meeting Status",
+          type: "select",
+          span: 1,
+          options: [
+            { value: "NOT_CONDUCTED", label: "Not Conducted" },
+            { value: "SCHEDULED", label: "Scheduled" },
+            { value: "CONDUCTED", label: "Conducted" }
+          ],
+          required: false
+        },
+        {
+          name: "preBidMeetingDate",
+          label: "Pre-bid Meeting Date",
+          type: "date",
+          span: 1,
+          required: false
+        },
+        {
+          name: "preBidMeetingDiscussion",
+          label: "Discussion Points",
+          type: "text",
+          span: 3,
+          required: false,
+          placeholder: "Enter discussion points from the pre-bid meeting..."
+        }
       ]
     },
     {
@@ -959,17 +1036,37 @@ console.log("uday"+formData.buyBack);
     const response = await axios.put("/api/tender-requests/tender/cancel", payload);
 
     // Use responseData field from backend
-    message.success(response.data.responseData);
+    message.success({
+      content: `${response.data.responseData}. Vendors have been notified via email.`,
+      duration: 5
+    });
 
     // Reset form
     setFormData({});
     setSearchDone(false);
-    
+
   } catch (error) {
     console.error(error);
-    message.error(
-      error.response?.data?.responseData || "Failed to cancel the Tender. Please try again."
-    );
+    const errorMsg = error.response?.data?.errorMessage || error.response?.data?.responseData || "Failed to cancel the Tender. Please try again.";
+
+    // TC_50: Check for active PO error
+    if (errorMsg.includes("active Purchase Order") || errorMsg.includes("PO exists")) {
+      message.error({
+        content: (
+          <div>
+            <strong>Cannot Cancel Tender</strong>
+            <p>{errorMsg}</p>
+            <p style={{marginTop: 8}}>Please cancel the Purchase Order first before cancelling this tender.</p>
+          </div>
+        ),
+        duration: 10
+      });
+    } else {
+      message.error({
+        content: errorMsg,
+        duration: 7
+      });
+    }
   }
 };
 

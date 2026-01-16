@@ -26,6 +26,7 @@ const initialState = {
   roles: [],           // list of roles from backend
   role: "", // current role
   roleId: null,
+  isFirstLogin: false, // TC_14: Track if user needs to change password
   loading: false,
   error: null
 };
@@ -81,6 +82,10 @@ const authSlice = createSlice({
      changeRole(state, action) {
       state.role = action.payload;
       state.roleId = state.roles.find(r => r.roleName === action.payload)?.roleId || null;
+    },
+    // TC_14: Clear first login flag after password change
+    clearFirstLogin(state) {
+      state.isFirstLogin = false;
     }
   },
   extraReducers: (builder) => {
@@ -121,7 +126,8 @@ const authSlice = createSlice({
     email,
     mobileNumber,
     employeeDepartment,
-    roles
+    roles,
+    isFirstLogin  // TC_14: Get isFirstLogin from backend
   } = action.payload;
 
   state.userId = userId;
@@ -132,6 +138,7 @@ const authSlice = createSlice({
   state.roles = roles || [];
   state.role = roles?.[0]?.roleName || ""; // Default: first role
   state.roleId = roles?.[0]?.roleId || null;// Default: first roleId
+  state.isFirstLogin = isFirstLogin || false; // TC_14: Store first login status
 })
 
       .addCase(login.rejected, (state, action) => {
@@ -142,5 +149,5 @@ const authSlice = createSlice({
 });
 
 //export const { logout } = authSlice.actions;
-export const { logout, changeRole } = authSlice.actions;
+export const { logout, changeRole, clearFirstLogin } = authSlice.actions;
 export default authSlice.reducer;

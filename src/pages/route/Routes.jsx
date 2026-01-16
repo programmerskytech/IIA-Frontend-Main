@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Login from "../auth/Login";
+import ChangePassword from "../auth/ChangePassword"; // TC_14: First login password change
 import PageNotFound from "../pageNotFound/PageNotFound";
 import Form3 from "../dashboard/indentModification/Form3";
 import Form17 from "../dashboard/goodsTransfer/Form17";
@@ -139,6 +140,7 @@ const RoutesComponent = () => {
             </Route>
           </Route>
         <Route path="/login" element={<Login />} />
+        <Route path="/change-password" element={<ChangePassword />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     </BrowserRouter>
