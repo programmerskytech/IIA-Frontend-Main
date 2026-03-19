@@ -74,10 +74,10 @@ export const useLOVValues = (formId, designatorName) => {
         isDefault: lov.isDefault
       }));
 
-      // Sort by display order but DON'T filter inactive items (backend returns all)
+      // Sort by display order - backend now returns only active LOVs
       const allLOVs = mappedValues.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-      console.log(`✅ Loaded ${allLOVs.length} LOV values for ${designatorName} (including inactive)`);
+      console.log(`✅ Loaded ${allLOVs.length} active LOV values for ${designatorName}`);
       setLovValues(allLOVs);
 
     } catch (err) {
@@ -149,10 +149,10 @@ export const useLOVValuesByFormName = (formName, designatorName) => {
         isDefault: lov.isDefault
       }));
 
-      // Sort by display order but DON'T filter inactive items (backend returns all)
+      // Sort by display order - backend now returns only active LOVs
       const allLOVs = mappedValues.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-      console.log(`✅ Loaded ${allLOVs.length} LOV values for ${designatorName} (including inactive)`);
+      console.log(`✅ Loaded ${allLOVs.length} active LOV values for ${designatorName}`);
       setLovValues(allLOVs);
 
     } catch (err) {

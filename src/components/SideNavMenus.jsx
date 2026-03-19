@@ -14,6 +14,10 @@ import {
   BankOutlined,
   UserOutlined,
   CalendarOutlined,
+  SafetyCertificateOutlined,
+  TeamOutlined,
+  EnvironmentOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import { MdOutlineAddBox, MdOutlineSettings } from "react-icons/md";
 import { BiTransferAlt } from "react-icons/bi";
@@ -125,6 +129,30 @@ const adminMenuItems = [
         icon: <CheckSquareOutlined />,
         label: "Approval Workflow",
         path: "/admin/approvers",
+      },
+      {
+        key: "admin-approval-limits",
+        icon: <SafetyCertificateOutlined />,
+        label: "Approval Limits",
+        path: "/admin/approval-limits",
+      },
+      {
+        key: "admin-dept-approvers",
+        icon: <TeamOutlined />,
+        label: "Department Approvers",
+        path: "/admin/department-approvers",
+      },
+      {
+        key: "admin-field-station",
+        icon: <EnvironmentOutlined />,
+        label: "Field Station In-Charges",
+        path: "/admin/field-station-approvers",
+      },
+      {
+        key: "admin-workflow-config",
+        icon: <EyeOutlined />,
+        label: "Full Workflow Config",
+        path: "/admin/workflow-config",
       },
       {
         key: "admin-projects",
@@ -536,5 +564,56 @@ export const sidebarMenus = {
       ],
     },
   ],
+
+  // Engineer In-Charge (renamed from Field Station In-Charge)
+  "Engineer In-Charge": [
+    ...commonMenu,
+  ],
+
+  // Professor In-Charge (NEW role with same responsibilities as Engineer In-Charge)
+  "Professor In-Charge": [
+    ...commonMenu,
+  ],
+
+  // Project Head role
+  "Project Head": [
+    ...commonMenu,
+  ],
+
+  // Purchase Head role
+  "Purchase Head": [
+    ...commonMenu,
+  ],
+
+  // Dean role
+  "Dean": [
+    ...commonMenu,
+  ],
+
+  // Head SEG role
+  "Head SEG": [
+    ...commonMenu,
+  ],
+
+  // Director role
+  "Director": [
+    ...commonMenu,
+  ],
+
+  // Reporting Officer role
+  "Reporting Officer": [
+    ...commonMenu,
+  ],
+
+  // Administrative Officer role
+  "Administrative Officer": [
+    ...commonMenu,
+  ],
+
+  // Computer Committee Chairman role
+  "Computer Committee Chairman": [
+    ...commonMenu,
+  ],
+
   default: [...commonMenu],
 };

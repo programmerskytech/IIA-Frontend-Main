@@ -44,7 +44,6 @@ const MaterialForm = ({materialCode}) => {
   const [materialDetailsMap, setMaterialDetailsMap] = useState({});
   const [materialCategories, setMaterialCategories] = useState([]);
   const [materialSubcategories, setMaterialSubcategories] = useState([]);
-  const [uomOptions, setUomOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showMaterialCodePopup, setShowMaterialCodePopup] = useState(false);
   const [generatedMaterialCode, setGeneratedMaterialCode] = useState("");
@@ -165,17 +164,6 @@ const MaterialForm = ({materialCode}) => {
         value: item.materialCode,
       }))
     );
-     const uomResponse = await axios.get("/api/uom-master");
-     const uomData = uomResponse.data;
-
-      if (!uomData.responseData) throw new Error("Invalid UOM data");
-
-      // Process UOM data
-      const processedUom = uomData.responseData.map((uom) => ({
-        value: uom.uomCode,
-        label: uom.uomName,
-      }));
-      setUomOptions(processedUom);
     } catch (error) {
       message.error("Failed to load materials");
       console.error("Material fetch error:", error);
@@ -331,10 +319,21 @@ const searchMaterials = async (searchText) => {
      const uploadedFileNameString = finalFileNames.join(",");
      const originBoolean =
         values.indigenousOrImported === "indigenous" ? true : false;
+      // Ensure createdBy is a valid number (backend expects Integer)
+      const createdByValue = isEditMode
+        ? existingData.createdBy
+        : (actionPerformer || auth?.userId || 1);
+
+      if (!createdByValue) {
+        message.error('User session not found. Please re-login.');
+        setLoading(false);
+        return;
+      }
+
       const payload = {
-  
+
         category: values.category,
-        createdBy: isEditMode ? existingData.createdBy : actionPerformer,
+        createdBy: Number(createdByValue),
         currency: values.currency,
         description: values.description,
         // estimatedPriceWithCcy: values.estimatedPriceWithCcy,
@@ -564,10 +563,7 @@ options={Array.isArray(materialList) ? materialList : []}
             ]}
           >
             <Select placeholder="Select Material Category" loading={loadingCategory}>
-              {(categoryLOV.length > 0 ? categoryLOV : [
-                { lovValue: "Capital", lovDisplayValue: "Capital" },
-                { lovValue: "Consumable", lovDisplayValue: "Consumable" }
-              ]).map((item) => (
+              {categoryLOV.map((item) => (
                 <Option key={item.lovId || item.lovValue} value={item.lovValue}>
                   {item.lovDisplayValue}
                 </Option>
@@ -586,19 +582,7 @@ options={Array.isArray(materialList) ? materialList : []}
             ]}
           >
             <Select placeholder="Select Material Subcategory" loading={loadingSubcategory}>
-              {(subcategoryLOV.length > 0 ? subcategoryLOV : [
-                { lovValue: "Chemicals", lovDisplayValue: "Chemicals" },
-                { lovValue: "Computer & Peripherals", lovDisplayValue: "Computer & Peripherals" },
-                { lovValue: "Electrical", lovDisplayValue: "Electrical" },
-                { lovValue: "Electronic Items", lovDisplayValue: "Electronic Items" },
-                { lovValue: "Equipment", lovDisplayValue: "Equipment" },
-                { lovValue: "Furniture", lovDisplayValue: "Furniture" },
-                { lovValue: "HARDWARE", lovDisplayValue: "HARDWARE" },
-                { lovValue: "Miscellaneous", lovDisplayValue: "Miscellaneous" },
-                { lovValue: "Software", lovDisplayValue: "Software" },
-                { lovValue: "Stationary", lovDisplayValue: "Stationary" },
-                { lovValue: "Vehicles", lovDisplayValue: "Vehicles" }
-              ]).map((item) => (
+              {subcategoryLOV.map((item) => (
                 <Option key={item.lovId || item.lovValue} value={item.lovValue}>
                   {item.lovDisplayValue}
                 </Option>
@@ -626,9 +610,9 @@ options={Array.isArray(materialList) ? materialList : []}
                 option.children.toLowerCase().includes(input.toLowerCase())
               }
             >
-              {(uomLOV.length > 0 ? uomLOV.map(lov => ({value: lov.lovValue, label: lov.lovDisplayValue})) : uomOptions).map((uom) => (
-                <Option key={uom.value} value={uom.value}>
-                  {uom.label}
+              {uomLOV.map(lov => (
+                <Option key={lov.lovId || lov.lovValue} value={lov.lovValue}>
+                  {lov.lovDisplayValue}
                 </Option>
               ))}
             </Select>
@@ -704,12 +688,7 @@ options={Array.isArray(materialList) ? materialList : []}
             rules={[{ required: true }]}
           >
             <Select placeholder="Select Currency" loading={loadingCurrency}>
-              {(currencyLOV.length > 0 ? currencyLOV : [
-                { lovValue: "USD", lovDisplayValue: "USD" },
-                { lovValue: "INR", lovDisplayValue: "INR" },
-                { lovValue: "EUR", lovDisplayValue: "EUR" },
-                { lovValue: "GBP", lovDisplayValue: "GBP" }
-              ]).map((item) => (
+              {currencyLOV.map((item) => (
                 <Option key={item.lovId || item.lovValue} value={item.lovValue}>
                   {item.lovDisplayValue}
                 </Option>

@@ -68,6 +68,10 @@ import ProjectManagement from "../dashboard/admin/ProjectManagement";
 import BudgetManagement from "../dashboard/admin/BudgetManagement";
 import EmployeeRegistration from "../dashboard/admin/EmployeeRegistration";
 import UserCreation from "../dashboard/admin/UserCreation";
+import ApprovalLimitsConfig from "../dashboard/admin/ApprovalLimitsConfig";
+import DepartmentApproverMapping from "../dashboard/admin/DepartmentApproverMapping";
+import FieldStationApproverConfig from "../dashboard/admin/FieldStationApproverConfig";
+import FullWorkflowConfig from "../dashboard/admin/FullWorkflowConfig";
 /*
 const RoutesComponent = () => {
   return (
@@ -261,6 +265,10 @@ const adminRoutes = (
     <Route path="/admin" element={<AdminDashboard />} />
     <Route path="/admin/lov" element={<ListOfValues />} />
     <Route path="/admin/approvers" element={<ApprovalWorkflow />} />
+    <Route path="/admin/approval-limits" element={<ApprovalLimitsConfig />} />
+    <Route path="/admin/department-approvers" element={<DepartmentApproverMapping />} />
+    <Route path="/admin/field-station-approvers" element={<FieldStationApproverConfig />} />
+    <Route path="/admin/workflow-config" element={<FullWorkflowConfig />} />
     <Route path="/admin/projects" element={<ProjectManagement />} />
     <Route path="/admin/budget" element={<BudgetManagement />} />
     <Route path="/admin/employee" element={<EmployeeRegistration />} />
@@ -316,6 +324,7 @@ const RoutesComponent = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/" element={<CustomLayout />}>
           <Route index element={defaultRoute} />
           {/* Queue - Only show for non-Admin roles */}

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Select, message, Row, Col, Table, Tag, Modal, Descriptions, Divider, AutoComplete, Spin } from 'antd';
-import { TeamOutlined, EyeInvisibleOutlined, EyeOutlined, CheckCircleOutlined, UserOutlined, SearchOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, Select, message, Row, Col, Table, Tag, Modal, Descriptions, Divider, AutoComplete, Spin, Tabs, Space, Tooltip, Switch } from 'antd';
+import { TeamOutlined, EyeInvisibleOutlined, EyeOutlined, CheckCircleOutlined, UserOutlined, SearchOutlined, EditOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
+const { TabPane } = Tabs;
 
 const UserCreation = () => {
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -22,10 +24,21 @@ const UserCreation = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeValidated, setEmployeeValidated] = useState(false);
 
+  // Search and Edit states
+  const [activeTab, setActiveTab] = useState('search');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
+
   useEffect(() => {
     fetchRoles();
     fetchDepartments();
     fetchRecentUsers();
+    fetchAllUsers();
   }, []);
 
   const fetchRoles = async () => {
@@ -65,6 +78,132 @@ const UserCreation = () => {
     }
   };
 
+  // Fetch all users with roles for search tab
+  const fetchAllUsers = async () => {
+    try {
+      setSearchLoading(true);
+      const response = await axios.get('/api/userMaster/list');
+      if (response.data.responseData) {
+        setSearchResults(response.data.responseData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      // Fallback to old endpoint if new one doesn't exist
+      try {
+        const fallbackResponse = await axios.get('/api/userMaster');
+        if (fallbackResponse.data.responseData) {
+          setSearchResults(fallbackResponse.data.responseData);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Search users by keyword
+  const handleSearch = async () => {
+    if (!searchKeyword.trim()) {
+      fetchAllUsers();
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      const response = await axios.get('/api/userMaster/search', {
+        params: { keyword: searchKeyword.trim() }
+      });
+      if (response.data.responseData) {
+        setSearchResults(response.data.responseData);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      message.error('Failed to search users');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Handle edit button click
+  const handleEdit = (user) => {
+    setEditingUser(user);
+
+    // Parse roles - handle both string and array formats
+    let userRoles = [];
+    if (user.roleNames && typeof user.roleNames === 'string') {
+      userRoles = user.roleNames.split(',').map(r => r.trim()).filter(r => r);
+    } else if (Array.isArray(user.roleNames)) {
+      userRoles = user.roleNames;
+    } else if (user.roleName) {
+      userRoles = user.roleName.split(',').map(r => r.trim()).filter(r => r);
+    }
+
+    editForm.setFieldsValue({
+      userName: user.userName,
+      email: user.email,
+      mobileNumber: user.mobileNumber,
+      employeeId: user.employeeId,
+      roleNames: userRoles,
+      password: '' // Don't pre-fill password
+    });
+    setEditModalVisible(true);
+  };
+
+  // Handle edit form submit
+  const handleEditSubmit = async (values) => {
+    try {
+      setEditLoading(true);
+
+      const payload = {
+        userName: values.userName,
+        email: values.email,
+        mobileNumber: values.mobileNumber || null,
+        employeeId: values.employeeId || null,
+        roleNames: values.roleNames,
+        createdBy: 'admin'
+      };
+
+      // Only include password if provided
+      if (values.password && values.password.trim()) {
+        payload.password = values.password;
+      }
+
+      await axios.put(`/api/userMaster/${editingUser.userId}`, payload);
+
+      message.success('User updated successfully');
+      setEditModalVisible(false);
+      setEditingUser(null);
+      editForm.resetFields();
+
+      // Refresh lists
+      fetchAllUsers();
+      fetchRecentUsers();
+    } catch (error) {
+      const errorMessage = error.response?.data?.responseStatus?.message
+        || error.response?.data?.message
+        || 'Failed to update user';
+      message.error(errorMessage);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Handle toggle user active/inactive status
+  const handleToggleStatus = async (userId) => {
+    try {
+      const response = await axios.put(`/api/userMaster/${userId}/toggle-status`);
+      const updatedUser = response.data.responseData;
+      // Update the user in the search results without a full refetch
+      setSearchResults(prev => prev.map(u =>
+        u.userId === userId ? { ...u, isActive: updatedUser.isActive } : u
+      ));
+      message.success(`User ${updatedUser.isActive ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      message.error(error.response?.data?.responseStatus?.message || 'Failed to update user status');
+    }
+  };
+
   const validatePassword = (_, value) => {
     if (!value) {
       return Promise.reject(new Error('Please enter password'));
@@ -85,6 +224,15 @@ const UserCreation = () => {
       return Promise.reject(new Error('Password must contain at least one special character'));
     }
     return Promise.resolve();
+  };
+
+  const validateEditPassword = (_, value) => {
+    // Password is optional during edit
+    if (!value || !value.trim()) {
+      return Promise.resolve();
+    }
+    // If password is provided, validate it
+    return validatePassword(_, value);
   };
 
   const validateConfirmPassword = (_, value) => {
@@ -190,10 +338,10 @@ const UserCreation = () => {
         userName: values.userName,
         email: values.email,
         password: values.password,
-        employeeId: values.employeeId || null,  // ✅ Optional - can be null
-        roleNames: values.roleNames,  // ✅ Array of roles (multiple selection)
+        employeeId: values.employeeId || null,
+        roleNames: values.roleNames,
         mobileNumber: values.mobileNumber || null,
-        createdBy: 'admin' // Replace with actual user from auth state
+        createdBy: 'admin'
       };
 
       // Check if user exists for employee ID
@@ -210,16 +358,15 @@ const UserCreation = () => {
       const userData = response.data?.responseData;
 
       if (userData) {
-        // ✅ Show success modal with user details
         setCreatedUser(userData);
         setSuccessModalVisible(true);
         form.resetFields();
         setSelectedEmployee(null);
         setEmployeeValidated(false);
         fetchRecentUsers();
+        fetchAllUsers();
       }
     } catch (error) {
-      // TC_16: Handle backend validation errors
       const errorMessage = error.response?.data?.responseStatus?.message
         || error.response?.data?.message
         || 'Failed to create user';
@@ -251,6 +398,144 @@ const UserCreation = () => {
     setCreatedUser(null);
   };
 
+  // Filter roles helper
+  const filterRoles = (roleList) => {
+    return roleList.filter((role) => {
+      if (!role || !role.roleId) return false;
+      const roleName = (role.roleName || '').trim();
+      if (!roleName || roleName.length === 0) return false;
+      const excludedRoles = ['heas sag', 'heas_sag'];
+      return !excludedRoles.includes(roleName.toLowerCase());
+    });
+  };
+
+  // Search results table columns
+  const searchColumns = [
+    {
+      title: 'User ID',
+      dataIndex: 'userId',
+      key: 'userId',
+      width: 80,
+      sorter: (a, b) => a.userId - b.userId
+    },
+    {
+      title: 'Username',
+      dataIndex: 'userName',
+      key: 'userName',
+      width: 150,
+      sorter: (a, b) => (a.userName || '').localeCompare(b.userName || '')
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      width: 200
+    },
+    {
+      title: 'Mobile',
+      dataIndex: 'mobileNumber',
+      key: 'mobileNumber',
+      width: 120,
+      render: (mobile) => mobile || '-'
+    },
+    {
+      title: 'Employee ID',
+      dataIndex: 'employeeId',
+      key: 'employeeId',
+      width: 120,
+      render: (empId) => empId ? <Tag color="green">{empId}</Tag> : '-'
+    },
+    {
+      title: 'Employee Name',
+      dataIndex: 'employeeName',
+      key: 'employeeName',
+      width: 150,
+      render: (name) => name || '-'
+    },
+    {
+      title: 'Role(s)',
+      dataIndex: 'roleNames',
+      key: 'roleNames',
+      width: 200,
+      render: (roleNames, record) => {
+        let roles = [];
+        if (roleNames && typeof roleNames === 'string') {
+          roles = roleNames.split(',').map(r => r.trim()).filter(r => r);
+        } else if (Array.isArray(roleNames)) {
+          roles = roleNames;
+        } else if (record.roleName) {
+          roles = record.roleName.split(',').map(r => r.trim()).filter(r => r);
+        }
+
+        if (roles.length === 0) return '-';
+
+        return (
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {roles.slice(0, 3).map((r, idx) => (
+              <Tag key={idx} color="blue">{r}</Tag>
+            ))}
+            {roles.length > 3 && (
+              <Tooltip title={roles.slice(3).join(', ')}>
+                <Tag color="default">+{roles.length - 3} more</Tag>
+              </Tooltip>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Created Date',
+      dataIndex: 'createdDate',
+      key: 'createdDate',
+      width: 120,
+      render: (date) => date ? dayjs(date).format('DD-MM-YYYY') : '-',
+      sorter: (a, b) => new Date(a.createdDate) - new Date(b.createdDate)
+    },
+    {
+      title: 'Status',
+      dataIndex: 'isActive',
+      key: 'isActive',
+      width: 90,
+      filters: [
+        { text: 'Active', value: true },
+        { text: 'Inactive', value: false }
+      ],
+      onFilter: (value, record) => record.isActive === value,
+      render: (isActive) => (
+        <Tag color={isActive === false ? 'red' : 'green'}>
+          {isActive === false ? 'Inactive' : 'Active'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 140,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space>
+          <Tooltip title="Edit User">
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              size="small"
+              onClick={() => handleEdit(record)}
+            />
+          </Tooltip>
+          <Tooltip title={record.isActive === false ? 'Activate User' : 'Deactivate User'}>
+            <Switch
+              checked={record.isActive !== false}
+              onChange={() => handleToggleStatus(record.userId)}
+              checkedChildren="On"
+              unCheckedChildren="Off"
+              size="small"
+            />
+          </Tooltip>
+        </Space>
+      )
+    }
+  ];
+
   const recentUsersColumns = [
     {
       title: 'Username',
@@ -269,9 +554,16 @@ const UserCreation = () => {
       dataIndex: 'roleName',
       key: 'roleName',
       width: 200,
-      render: (role) => {
-        if (!role) return '-';
-        const roles = role.split(',').map(r => r.trim());
+      render: (role, record) => {
+        let roles = [];
+        if (record.roleNames && Array.isArray(record.roleNames) && record.roleNames.length > 0) {
+          roles = record.roleNames;
+        } else if (role) {
+          roles = role.split(',').map(r => r.trim()).filter(r => r);
+        }
+
+        if (roles.length === 0) return '-';
+
         return (
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             {roles.map((r, idx) => (
@@ -292,177 +584,366 @@ const UserCreation = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <Row gutter={24}>
-        <Col xs={24} lg={14}>
-          <Card
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <TeamOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
-                <span>User Creation</span>
-              </div>
+      <Card
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <TeamOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
+            <span>User Management</span>
+          </div>
+        }
+        bordered={false}
+      >
+        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+          {/* Search Users Tab */}
+          <TabPane
+            tab={
+              <span>
+                <SearchOutlined />
+                Search Users
+              </span>
             }
-            bordered={false}
+            key="search"
           >
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
-              Create New User Account
-            </h3>
-
-            <Form form={form} layout="vertical" onFinish={handleSubmit}>
-              <Form.Item
-                label="Username"
-                name="userName"
-                rules={[
-                  { required: true, message: 'Please enter username' },
-                  { min: 3, message: 'Username must be at least 3 characters' }
-                ]}
-              >
-                <Input placeholder="Enter username" />
-              </Form.Item>
-
-              <Form.Item
-                label="Email Address"
-                name="email"
-                rules={[
-                  { required: true, message: 'Please enter email address' },
-                  { type: 'email', message: 'Please enter valid email' }
-                ]}
-              >
-                <Input placeholder="Enter email address" />
-              </Form.Item>
-
-              <Form.Item
-                label="Password"
-                name="password"
-                rules={[{ validator: validatePassword }]}
-              >
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter password"
-                  suffix={
-                    showPassword ? (
-                      <EyeOutlined onClick={() => setShowPassword(false)} style={{ cursor: 'pointer' }} />
-                    ) : (
-                      <EyeInvisibleOutlined onClick={() => setShowPassword(true)} style={{ cursor: 'pointer' }} />
-                    )
-                  }
-                />
-              </Form.Item>
-
-              <Form.Item
-                label="Confirm Password"
-                name="confirmPassword"
-                rules={[{ validator: validateConfirmPassword }]}
-              >
-                <Input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Confirm password"
-                  suffix={
-                    showConfirmPassword ? (
-                      <EyeOutlined onClick={() => setShowConfirmPassword(false)} style={{ cursor: 'pointer' }} />
-                    ) : (
-                      <EyeInvisibleOutlined onClick={() => setShowConfirmPassword(true)} style={{ cursor: 'pointer' }} />
-                    )
-                  }
-                />
-              </Form.Item>
-
-              {/* TC_16: Employee ID Autocomplete with validation */}
-              <Form.Item
-                label="Employee ID (Optional)"
-                name="employeeId"
-                tooltip="Search and select an existing employee to link to this user account"
-                help={selectedEmployee ? `Selected: ${selectedEmployee.employeeName} - ${selectedEmployee.departmentName}` : "Start typing employee ID or name to search"}
-                rules={[{ validator: validateEmployeeId }]}
-              >
-                <AutoComplete
-                  options={employeeOptions}
-                  onSearch={handleEmployeeSearch}
-                  onSelect={handleEmployeeSelect}
-                  placeholder="Search by employee ID or name"
-                  notFoundContent={searchingEmployee ? <Spin size="small" /> : "No employees found"}
-                  suffixIcon={<SearchOutlined />}
-                  allowClear
-                  onClear={() => {
-                    setSelectedEmployee(null);
-                    setEmployeeValidated(false);
-                    setEmployeeOptions([]);
-                  }}
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-
-              <Form.Item
-                label="User Roles"
-                name="roleNames"
-                rules={[{ required: true, message: 'Please select at least one role' }]}
-                tooltip="Select one or more roles for this user"
-              >
-                <Select
-                  mode="multiple"  // ✅ Multiple role selection
-                  placeholder="Select one or more roles"
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
-                >
-                  {roles.map((role) => (
-                    <Option key={role.roleId} value={role.roleName}>
-                      {role.roleName}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-
-              <Form.Item label="Mobile Number (Optional)" name="mobileNumber">
-                <Input placeholder="Enter mobile number" maxLength={10} />
-              </Form.Item>
-
-              {/* Action Buttons */}
-              <Form.Item style={{ marginTop: '32px', marginBottom: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <Button size="large" onClick={handleClear}>
-                    Clear Form
-                  </Button>
-                  <Button type="primary" size="large" htmlType="submit" loading={loading}>
-                    Create User
-                  </Button>
-                </div>
-              </Form.Item>
-            </Form>
-
-            {/* Password Requirements */}
-            <div style={{ marginTop: '24px', padding: '16px', backgroundColor: '#f6f8fa', borderRadius: '4px' }}>
-              <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Password Requirements:</h4>
-              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#666' }}>
-                <li>At least 8 characters long</li>
-                <li>At least one uppercase letter (A-Z)</li>
-                <li>At least one lowercase letter (a-z)</li>
-                <li>At least one number (0-9)</li>
-                <li>At least one special character (@$!%*?&#)</li>
-              </ul>
+            <div style={{ marginBottom: '16px' }}>
+              <Row gutter={16} align="middle">
+                <Col flex="auto">
+                  <Input
+                    placeholder="Search by username, email, mobile, employee ID, or employee name..."
+                    value={searchKeyword}
+                    onChange={(e) => setSearchKeyword(e.target.value)}
+                    onPressEnter={handleSearch}
+                    prefix={<SearchOutlined />}
+                    allowClear
+                    size="large"
+                  />
+                </Col>
+                <Col>
+                  <Space>
+                    <Button
+                      type="primary"
+                      icon={<SearchOutlined />}
+                      onClick={handleSearch}
+                      loading={searchLoading}
+                      size="large"
+                    >
+                      Search
+                    </Button>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={() => {
+                        setSearchKeyword('');
+                        fetchAllUsers();
+                      }}
+                      size="large"
+                    >
+                      Reset
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
             </div>
-          </Card>
-        </Col>
 
-        <Col xs={24} lg={10}>
-          <Card title="Recently Created Users" bordered={false}>
-            {recentUsers.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                No users created yet
-              </div>
-            ) : (
-              <Table
-                columns={recentUsersColumns}
-                dataSource={recentUsers}
-                rowKey="userId"
-                pagination={false}
-                size="small"
-                scroll={{ x: 500 }}
-              />
-            )}
-          </Card>
-        </Col>
-      </Row>
+            <style>{`.inactive-user-row { opacity: 0.55; }`}</style>
+            <Table
+              columns={searchColumns}
+              dataSource={searchResults}
+              rowKey="userId"
+              loading={searchLoading}
+              rowClassName={(record) => record.isActive === false ? 'inactive-user-row' : ''}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} users`
+              }}
+              scroll={{ x: 1200 }}
+              size="middle"
+            />
+          </TabPane>
+
+          {/* Create User Tab */}
+          <TabPane
+            tab={
+              <span>
+                <PlusOutlined />
+                Create User
+              </span>
+            }
+            key="create"
+          >
+            <Row gutter={24}>
+              <Col xs={24} lg={14}>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
+                  Create New User Account
+                </h3>
+
+                <Form form={form} layout="vertical" onFinish={handleSubmit}>
+                  <Form.Item
+                    label="Username"
+                    name="userName"
+                    rules={[
+                      { required: true, message: 'Please enter username' },
+                      { min: 3, message: 'Username must be at least 3 characters' }
+                    ]}
+                  >
+                    <Input placeholder="Enter username" />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Email Address"
+                    name="email"
+                    rules={[
+                      { required: true, message: 'Please enter email address' },
+                      { type: 'email', message: 'Please enter valid email' }
+                    ]}
+                  >
+                    <Input placeholder="Enter email address" />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Password"
+                    name="password"
+                    rules={[{ validator: validatePassword }]}
+                  >
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter password"
+                      suffix={
+                        showPassword ? (
+                          <EyeOutlined onClick={() => setShowPassword(false)} style={{ cursor: 'pointer' }} />
+                        ) : (
+                          <EyeInvisibleOutlined onClick={() => setShowPassword(true)} style={{ cursor: 'pointer' }} />
+                        )
+                      }
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Confirm Password"
+                    name="confirmPassword"
+                    rules={[{ validator: validateConfirmPassword }]}
+                  >
+                    <Input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Confirm password"
+                      suffix={
+                        showConfirmPassword ? (
+                          <EyeOutlined onClick={() => setShowConfirmPassword(false)} style={{ cursor: 'pointer' }} />
+                        ) : (
+                          <EyeInvisibleOutlined onClick={() => setShowConfirmPassword(true)} style={{ cursor: 'pointer' }} />
+                        )
+                      }
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Employee ID (Optional)"
+                    name="employeeId"
+                    tooltip="Search and select an existing employee to link to this user account"
+                    help={selectedEmployee ? `Selected: ${selectedEmployee.employeeName} - ${selectedEmployee.departmentName}` : "Start typing employee ID or name to search"}
+                    rules={[{ validator: validateEmployeeId }]}
+                  >
+                    <AutoComplete
+                      options={employeeOptions}
+                      onSearch={handleEmployeeSearch}
+                      onSelect={handleEmployeeSelect}
+                      placeholder="Search by employee ID or name"
+                      notFoundContent={searchingEmployee ? <Spin size="small" /> : "No employees found"}
+                      suffixIcon={<SearchOutlined />}
+                      allowClear
+                      onClear={() => {
+                        setSelectedEmployee(null);
+                        setEmployeeValidated(false);
+                        setEmployeeOptions([]);
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="User Roles"
+                    name="roleNames"
+                    rules={[{ required: true, message: 'Please select at least one role' }]}
+                    tooltip="Select one or more roles for this user"
+                  >
+                    <Select
+                      mode="multiple"
+                      placeholder="Select one or more roles"
+                      showSearch
+                      filterOption={(input, option) =>
+                        (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {filterRoles(roles).map((role) => (
+                        <Option key={role.roleId} value={role.roleName.trim()}>
+                          {role.roleName.trim()}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item label="Mobile Number (Optional)" name="mobileNumber">
+                    <Input placeholder="Enter mobile number" maxLength={10} />
+                  </Form.Item>
+
+                  <Form.Item style={{ marginTop: '32px', marginBottom: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                      <Button size="large" onClick={handleClear}>
+                        Clear Form
+                      </Button>
+                      <Button type="primary" size="large" htmlType="submit" loading={loading}>
+                        Create User
+                      </Button>
+                    </div>
+                  </Form.Item>
+                </Form>
+
+                <div style={{ marginTop: '24px', padding: '16px', backgroundColor: '#f6f8fa', borderRadius: '4px' }}>
+                  <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>Password Requirements:</h4>
+                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#666' }}>
+                    <li>At least 8 characters long</li>
+                    <li>At least one uppercase letter (A-Z)</li>
+                    <li>At least one lowercase letter (a-z)</li>
+                    <li>At least one number (0-9)</li>
+                    <li>At least one special character (@$!%*?&#)</li>
+                  </ul>
+                </div>
+              </Col>
+
+              <Col xs={24} lg={10}>
+                <Card title="Recently Created Users" bordered={false} size="small">
+                  {recentUsers.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                      No users created yet
+                    </div>
+                  ) : (
+                    <Table
+                      columns={recentUsersColumns}
+                      dataSource={recentUsers}
+                      rowKey="userId"
+                      pagination={false}
+                      size="small"
+                      scroll={{ x: 500 }}
+                    />
+                  )}
+                </Card>
+              </Col>
+            </Row>
+          </TabPane>
+        </Tabs>
+      </Card>
+
+      {/* Edit User Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <EditOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
+            <span>Edit User - ID: {editingUser?.userId}</span>
+          </div>
+        }
+        open={editModalVisible}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setEditingUser(null);
+          editForm.resetFields();
+        }}
+        footer={null}
+        width={600}
+        destroyOnClose
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleEditSubmit}
+          style={{ marginTop: '16px' }}
+        >
+          <Form.Item
+            label="Username"
+            name="userName"
+            rules={[
+              { required: true, message: 'Please enter username' },
+              { min: 3, message: 'Username must be at least 3 characters' }
+            ]}
+          >
+            <Input placeholder="Enter username" />
+          </Form.Item>
+
+          <Form.Item
+            label="Email Address"
+            name="email"
+            rules={[
+              { required: true, message: 'Please enter email address' },
+              { type: 'email', message: 'Please enter valid email' }
+            ]}
+          >
+            <Input placeholder="Enter email address" />
+          </Form.Item>
+
+          <Form.Item
+            label="New Password (Leave blank to keep current)"
+            name="password"
+            rules={[{ validator: validateEditPassword }]}
+          >
+            <Input
+              type={showEditPassword ? 'text' : 'password'}
+              placeholder="Enter new password (optional)"
+              suffix={
+                showEditPassword ? (
+                  <EyeOutlined onClick={() => setShowEditPassword(false)} style={{ cursor: 'pointer' }} />
+                ) : (
+                  <EyeInvisibleOutlined onClick={() => setShowEditPassword(true)} style={{ cursor: 'pointer' }} />
+                )
+              }
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="Employee ID"
+            name="employeeId"
+          >
+            <Input placeholder="Enter employee ID" />
+          </Form.Item>
+
+          <Form.Item
+            label="User Roles"
+            name="roleNames"
+            rules={[{ required: true, message: 'Please select at least one role' }]}
+          >
+            <Select
+              mode="multiple"
+              placeholder="Select one or more roles"
+              showSearch
+              filterOption={(input, option) =>
+                (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {filterRoles(roles).map((role) => (
+                <Option key={role.roleId} value={role.roleName.trim()}>
+                  {role.roleName.trim()}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item label="Mobile Number" name="mobileNumber">
+            <Input placeholder="Enter mobile number" maxLength={10} />
+          </Form.Item>
+
+          <Form.Item style={{ marginTop: '24px', marginBottom: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <Button onClick={() => {
+                setEditModalVisible(false);
+                setEditingUser(null);
+                editForm.resetFields();
+              }}>
+                Cancel
+              </Button>
+              <Button type="primary" htmlType="submit" loading={editLoading}>
+                Update User
+              </Button>
+            </div>
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Success Modal */}
       <Modal
@@ -483,7 +964,6 @@ const UserCreation = () => {
       >
         {createdUser && (
           <>
-            {/* User ID Highlighted */}
             <div style={{
               backgroundColor: '#e6f7ff',
               padding: '16px',
@@ -501,7 +981,6 @@ const UserCreation = () => {
 
             <Divider />
 
-            {/* User Information */}
             <h4 style={{ marginBottom: '12px', color: '#1890ff' }}>User Information</h4>
             <Descriptions bordered column={1} size="small">
               <Descriptions.Item label="Username">{createdUser.userName}</Descriptions.Item>
@@ -518,19 +997,20 @@ const UserCreation = () => {
 
             <Divider />
 
-            {/* Assigned Roles */}
             <h4 style={{ marginBottom: '12px', color: '#1890ff' }}>Assigned Roles</h4>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-              {createdUser.roleName?.split(',').map((role, index) => (
+              {(createdUser.roleNames && Array.isArray(createdUser.roleNames) && createdUser.roleNames.length > 0
+                ? createdUser.roleNames
+                : (createdUser.roleName?.split(',') || [])
+              ).map((role, index) => (
                 <Tag key={index} color="blue" style={{ fontSize: '14px', padding: '4px 12px' }}>
-                  {role.trim()}
+                  {typeof role === 'string' ? role.trim() : role}
                 </Tag>
               ))}
             </div>
 
             <Divider />
 
-            {/* System Information */}
             <h4 style={{ marginBottom: '12px', color: '#1890ff' }}>System Information</h4>
             <Descriptions bordered column={2} size="small">
               <Descriptions.Item label="Created By">{createdUser.createdBy}</Descriptions.Item>

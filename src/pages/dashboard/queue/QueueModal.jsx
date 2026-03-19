@@ -46,6 +46,7 @@ const QueueModal = ({
   selectedMaterialCode,
   setSelectedMaterialCode,
 }) => {
+
   return (
     <Modal
       title={
@@ -105,6 +106,11 @@ const QueueModal = ({
                     <div className="detail-item">
                       <strong>Project Name:</strong> {detailsData.projectName}
                     </div>
+                    {detailsData.projectCode && (
+                      <div className="detail-item">
+                        <strong>Project Code:</strong> {detailsData.projectCode}
+                      </div>
+                    )}
                     <div className="detail-item">
                       <strong>Location:</strong> {detailsData.consignesLocation}
                     </div>

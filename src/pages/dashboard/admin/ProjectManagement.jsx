@@ -13,10 +13,101 @@ const ProjectManagement = () => {
   const [searchText, setSearchText] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
+  const [budgetCodes, setBudgetCodes] = useState([]); // Budget codes from Budget Management
+  const [projectHeads, setProjectHeads] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [budgetTypes, setBudgetTypes] = useState([]);
+  const [projectStatuses, setProjectStatuses] = useState([]);
 
   useEffect(() => {
     fetchProjects();
+    fetchBudgetCodes();
+    fetchProjectHeads();
+    fetchDepartments();
+    fetchCategories();
+    fetchBudgetTypes();
+    fetchProjectStatuses();
   }, []);
+
+  // Fetch budget codes from Budget Management for dropdown
+  const fetchBudgetCodes = async () => {
+    try {
+      const response = await axios.get('/api/admin/budget/dropdown');
+      if (response.data.responseData) {
+        setBudgetCodes(response.data.responseData);
+      } else if (response.data.data) {
+        setBudgetCodes(response.data.data);
+      } else if (Array.isArray(response.data)) {
+        setBudgetCodes(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch budget codes:', error);
+      // Fallback: try fetching from budget list
+      try {
+        const fallbackResponse = await axios.get('/api/admin/budget');
+        if (fallbackResponse.data.responseData) {
+          const codes = fallbackResponse.data.responseData.map(b => ({
+            budgetCode: b.budgetCode,
+            budgetName: b.budgetName
+          }));
+          setBudgetCodes(codes);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback budget fetch also failed:', fallbackError);
+      }
+    }
+  };
+
+  const fetchProjectHeads = async () => {
+    try {
+      const response = await axios.get('/api/lov/project/heads');
+      const data = response.data.responseData || response.data.data || (Array.isArray(response.data) ? response.data : []);
+      setProjectHeads(data);
+    } catch (error) {
+      console.error('Failed to fetch project heads:', error);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await axios.get('/api/lov/project/departments');
+      const data = response.data.responseData || response.data.data || (Array.isArray(response.data) ? response.data : []);
+      setDepartments(data);
+    } catch (error) {
+      console.error('Failed to fetch departments:', error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get('/api/lov/project/categories');
+      const data = response.data.responseData || response.data.data || (Array.isArray(response.data) ? response.data : []);
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    }
+  };
+
+  const fetchBudgetTypes = async () => {
+    try {
+      const response = await axios.get('/api/lov/project/budget-types');
+      const data = response.data.responseData || response.data.data || (Array.isArray(response.data) ? response.data : []);
+      setBudgetTypes(data);
+    } catch (error) {
+      console.error('Failed to fetch budget types:', error);
+    }
+  };
+
+  const fetchProjectStatuses = async () => {
+    try {
+      const response = await axios.get('/api/lov/project/statuses');
+      const data = response.data.responseData || response.data.data || (Array.isArray(response.data) ? response.data : []);
+      setProjectStatuses(data);
+    } catch (error) {
+      console.error('Failed to fetch project statuses:', error);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -36,7 +127,7 @@ const ProjectManagement = () => {
   const handleAddNew = () => {
     setEditingProject(null);
     form.resetFields();
-    form.setFieldsValue({ status: 'Active' });
+    form.setFieldsValue({ status: projectStatuses.find(s => s.isActive)?.value || undefined });
     setModalVisible(true);
   };
 
@@ -48,11 +139,12 @@ const ProjectManagement = () => {
       projectHead: record.projectHead,
       departmentDivision: record.departmentDivision,
       budgetType: record.budgetType,
+      budgetCode: record.budgetCode || record.projectCode,
       category: record.category,
       allocatedAmount: record.allocatedAmount,
       availableProjectLimit: record.availableProjectLimit,
-      startDate: record.startDate ? dayjs(record.startDate) : null,
-      endDate: record.endDate ? dayjs(record.endDate) : null,
+      startDate: record.startDate && dayjs(record.startDate).isValid() ? dayjs(record.startDate) : null,
+      endDate: record.endDate && dayjs(record.endDate).isValid() ? dayjs(record.endDate) : null,
       status: record.status || 'Active'
     });
     setModalVisible(true);
@@ -70,12 +162,15 @@ const ProjectManagement = () => {
 
   const handleSubmit = async (values) => {
     try {
+      const selectedHead = projectHeads.find(h => h.employeeId === values.projectHead);
       const payload = {
         projectCode: values.projectCode,
         projectNameDescription: values.projectNameDescription,
         projectHead: values.projectHead,
+        projectHeadName: selectedHead?.employeeName || '',
         departmentDivision: values.departmentDivision,
         budgetType: values.budgetType,
+        budgetCode: values.budgetCode || values.projectCode,
         category: values.category,
         allocatedAmount: parseFloat(values.allocatedAmount),
         availableProjectLimit: parseFloat(values.availableProjectLimit || values.allocatedAmount),
@@ -106,7 +201,8 @@ const ProjectManagement = () => {
     (item) =>
       item.projectCode?.toLowerCase().includes(searchText.toLowerCase()) ||
       item.projectNameDescription?.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.projectHead?.toLowerCase().includes(searchText.toLowerCase())
+      item.projectHead?.toLowerCase().includes(searchText.toLowerCase()) ||
+      item.projectHeadName?.toLowerCase().includes(searchText.toLowerCase())
   );
 
   const columns = [
@@ -123,24 +219,25 @@ const ProjectManagement = () => {
       width: 150
     },
     {
-      title: 'Manager',
-      dataIndex: 'projectHead',
+      title: 'Project Head',
+      dataIndex: 'projectHeadName',
       key: 'projectHead',
-      width: 150
+      width: 150,
+      render: (text, record) => text || record.projectHead || '-'
     },
     {
       title: 'Start Date',
       dataIndex: 'startDate',
       key: 'startDate',
       width: 120,
-      render: (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-'
+      render: (date) => date && dayjs(date).isValid() ? dayjs(date).format('YYYY-MM-DD') : '-'
     },
     {
       title: 'End Date',
       dataIndex: 'endDate',
       key: 'endDate',
       width: 120,
-      render: (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-'
+      render: (date) => date && dayjs(date).isValid() ? dayjs(date).format('YYYY-MM-DD') : '-'
     },
     {
       title: 'Status',
@@ -187,7 +284,7 @@ const ProjectManagement = () => {
         {/* Search and Actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
           <Input
-            placeholder="Search projects by name, budget code, or manager..."
+            placeholder="Search projects by name, budget code, or project head..."
             prefix={<SearchOutlined />}
             style={{ width: '400px' }}
             value={searchText}
@@ -247,17 +344,42 @@ const ProjectManagement = () => {
             <Form.Item
               label="Budget Code"
               name="projectCode"
-              rules={[{ required: true, message: 'Please enter budget code' }]}
+              rules={[{ required: true, message: 'Please select budget code' }]}
             >
-              <Input placeholder="Enter budget code" disabled={!!editingProject} />
+              <Select
+                placeholder="Select budget code"
+                disabled={!!editingProject}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {budgetCodes.map((budget) => (
+                  <Option key={budget.budgetCode} value={budget.budgetCode}>
+                    {budget.budgetCode} - {budget.budgetName}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
             <Form.Item
-              label="Project Manager"
+              label="Project Head"
               name="projectHead"
-              rules={[{ required: true, message: 'Please enter manager name' }]}
+              rules={[{ required: true, message: 'Please select project head' }]}
             >
-              <Input placeholder="Enter manager name" />
+              <Select
+                placeholder="Select project head"
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {projectHeads.map((head) => (
+                  <Option key={head.employeeId} value={head.employeeId}>
+                    {head.displayValue || `${head.employeeId} - ${head.employeeName}`}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
             <Form.Item
@@ -265,10 +387,12 @@ const ProjectManagement = () => {
               name="status"
               rules={[{ required: true, message: 'Please select status' }]}
             >
-              <Select>
-                <Option value="Active">Active</Option>
-                <Option value="Completed">Completed</Option>
-                <Option value="Closed">Closed</Option>
+              <Select placeholder="Select status">
+                {projectStatuses.map((item) => (
+                  <Option key={item.lovId || item.value} value={item.value}>
+                    {item.displayValue || item.value}
+                  </Option>
+                ))}
               </Select>
             </Form.Item>
 
@@ -289,19 +413,47 @@ const ProjectManagement = () => {
             </Form.Item>
 
             <Form.Item label="Department/Division" name="departmentDivision">
-              <Input placeholder="Enter department" />
+              <Select
+                placeholder="Select department"
+                showSearch
+                allowClear
+                filterOption={(input, option) =>
+                  (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {departments.map((dept) => (
+                  <Option key={dept.lovId || dept.lovValue} value={dept.lovValue || dept.value}>
+                    {dept.lovDisplayValue || dept.lovValue || dept.value}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
             <Form.Item label="Budget Type" name="budgetType">
               <Select placeholder="Select budget type">
-                <Option value="Capital">Capital</Option>
-                <Option value="Operational">Operational</Option>
-                <Option value="Consumable">Consumable</Option>
+                {budgetTypes.map((item) => (
+                  <Option key={item.lovId || item.value} value={item.value}>
+                    {item.displayValue || item.value}
+                  </Option>
+                ))}
               </Select>
             </Form.Item>
 
             <Form.Item label="Category" name="category">
-              <Input placeholder="Enter category" />
+              <Select
+                placeholder="Select category"
+                showSearch
+                allowClear
+                filterOption={(input, option) =>
+                  (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              >
+                {categories.map((cat) => (
+                  <Option key={cat.lovId || cat.lovValue} value={cat.lovValue || cat.value}>
+                    {cat.lovDisplayValue || cat.lovValue || cat.value}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
             <Form.Item

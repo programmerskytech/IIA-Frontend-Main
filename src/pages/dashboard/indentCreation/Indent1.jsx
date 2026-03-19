@@ -1,6 +1,7 @@
 import { Card, message, Select, Row, Col, Tag, Button, Alert, Space } from 'antd'
 import React, { useEffect, useRef, useState } from 'react'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
+import { fetchMasters } from '../../../store/slice/masterSlice'
 import { HistoryOutlined } from '@ant-design/icons'
 import Heading from '../../../components/DKG_Heading'
 import { renderFormFields } from '../../../utils/CommonFunctions'
@@ -23,14 +24,20 @@ const MAX_FILE_SIZE_MB = 50;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const proprietaryLimitedDeclarationLabel = "The budgetary quote was obtained informing the vendor about:  (i) IIA's Payment Terms - 100% payment within 30 days from acceptance (ii). Applicability of providing performance & warranty security. (iii) Applicability of LD Clause."
 
+// Mode of Procurement options — 6 allowed values per backend validation
 const modeOfProcurementOptions = [
-    { label: "GEM", value: "GEM" },
-    { label: "Brand PAC", value: "Brand PAC" },
-    { label: "Proprietary/Single Tender", value: "Proprietary/Single Tender" },
-    { label: "Limited Pre Approved Vendor Tender", value: "Limited Pre Approved Vendor Tender" },
-    { label: "Open Tender", value: "Open Tender" },
-    { label: "Global Tender", value: "Global Tender" }
+    { label: "Open Tender", value: "OPEN_TENDER" },
+    { label: "Global Tender", value: "GLOBAL_TENDER" },
+    { label: "Limited Tender", value: "LIMITED_TENDER" },
+    { label: "Proprietary Purchase", value: "PROPRIETARY" },
+    { label: "BRAND PAC", value: "BRAND_PAC" },
+    { label: "GEM Government e-Marketplace", value: "GEM" },
 ];
+
+// Modes that do NOT allow vendor selection
+const NO_VENDOR_MODES = ["OPEN_TENDER", "GLOBAL_TENDER", "BRAND_PAC", "GEM"];
+// Modes that require vendor selection
+const VENDOR_REQUIRED_MODES = ["LIMITED_TENDER", "PROPRIETARY"];
 
 const reasonDropdown = [
     {
@@ -81,7 +88,13 @@ const currencyOptions = [
 
 const Indent1 = () => {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const { userName, mobileNumber, email, userId, employeeDepartment } = useSelector(state => state.auth)
+
+    // Feature 1: Refresh project list on page load to get newly added projects
+    useEffect(() => {
+        dispatch(fetchMasters());
+    }, [dispatch]);
 
     console.log(employeeDepartment);
     const printRef = useRef();
@@ -137,6 +150,7 @@ const Indent1 = () => {
         indentorEmailAddress: '', // ✅ Will be auto-filled from employee table via API
         indentorDepartment: '', // ✅ Will be auto-filled from employee table via API
         projectName: "",
+        projectCode: "", // NEW: Project code for workflow routing
         consignesLocation: "",
         materialDetails: [{}],
         jobDetails: [{}],
@@ -149,7 +163,21 @@ const Indent1 = () => {
         parentIndentId: null,
         currentStatus: 'DRAFT',
         currentStage: 'INDENT_CREATION',
-        approvalLevel: 0
+        approvalLevel: 0,
+        // NEW: Backend status fields for workflow display
+        totalApprovalLevels: null,
+        isFullyApproved: false,
+        statusMessage: null,
+        currentApprovalLevel: null,
+        pendingWith: null,
+        // NEW Dynamic Workflow Fields
+        isUnderProject: false, // Project/Non-Project classification
+        workflowBranchId: null, // Matched workflow branch (set by backend)
+        escalatedToDirector: false, // Whether escalated to Director
+        escalationReason: null, // Reason for escalation
+        modeOfProcurement: null, // MANDATORY: GEM, OPEN_TENDER, etc.
+        roProjectDetermination: null, // RO's project status determination
+        roProjectDeterminationRemarks: null // RO's remarks on project determination
     })
 
     const { locationMaster, projectMaster, materialMaster, vendorMaster } = useSelector(state => state.masters)
@@ -165,22 +193,20 @@ const Indent1 = () => {
     // ✅ NEW: State for department computer price limit
     const [departmentPriceLimit, setDepartmentPriceLimit] = useState(null);
 
+    // ✅ NEW: State for project-specific budget codes
+    const [projectBudgetCodes, setProjectBudgetCodes] = useState([]);
+
     // ✅ Fetch consignee location values from LOV system (Form ID: 3 = IndentCreation, Designator: consigneeLocation)
     const { lovValues: consigneeLocationLOV, loading: loadingLocations } = useLOVValues(3, 'consigneeLocation');
 
     // ✅ Use LOV values with correct mapping: display lovDisplayValue, send lovValue to backend
     // ✅ TC_13: Filter out inactive items for regular form dropdowns
-    const locationDropdown = consigneeLocationLOV.length > 0
-        ? consigneeLocationLOV
-            .filter(item => item.isActive === true)  // TC_13: Only show active items in forms
-            .map((item) => ({
-                label: item.lovDisplayValue,  // Show "Bangalore" in dropdown
-                value: item.lovValue          // Send "BANGALORE" to backend
-            }))
-        : locationMaster.map((item) => ({
-            label: item.locationName,
-            value: item.locationName
-          }))
+    const locationDropdown = consigneeLocationLOV
+        .filter(item => item.isActive === true)  // TC_13: Only show active items in forms
+        .map((item) => ({
+            label: item.lovDisplayValue,  // Show "Bangalore" in dropdown
+            value: item.lovValue          // Send "BANGALORE" to backend
+        }))
 
     const projectDropdown = projectMaster.map((item) => {
         return {
@@ -196,7 +222,7 @@ const Indent1 = () => {
         }
     })
 
-    const budgetCodeDropdown = [...new Set(projectMaster.map(p => p.budgetType))].map(bt => ({ label: bt, value: bt }))
+    const budgetCodeDropdown = [] // populated dynamically via fetchBudgetCodesByProject when a project is selected
 
     const [modalOpen, setModalOpen] = useState(false);
 
@@ -393,6 +419,38 @@ const Indent1 = () => {
         }
     };
 
+    // ✅ NEW: Fetch budget codes based on selected project
+    const fetchBudgetCodesByProject = async (projectCode) => {
+        if (!projectCode) {
+            setProjectBudgetCodes([]);
+            return;
+        }
+
+        try {
+            const { data } = await axios.get(`/api/admin/budget/project/${projectCode}/dropdown`);
+            let budgetData = [];
+
+            if (data?.responseData) {
+                budgetData = data.responseData;
+            } else if (data?.data) {
+                budgetData = data.data;
+            } else if (Array.isArray(data)) {
+                budgetData = data;
+            }
+
+            const budgetOptions = budgetData.map(budget => ({
+                label: `${budget.budgetCode} - ${budget.budgetName || budget.budgetCode}`,
+                value: budget.budgetCode
+            }));
+
+            setProjectBudgetCodes(budgetOptions);
+            console.log(`✅ Loaded ${budgetOptions.length} budget codes for project ${projectCode}`);
+        } catch (error) {
+            console.error('Error fetching budget codes for project:', error);
+            setProjectBudgetCodes([]);
+        }
+    };
+
     // ✅ UPDATED: Auto-fetch employee details (name, department, mobile, email) from employee table
     useEffect(() => {
         const fetchEmployeeDetailsByUserId = async () => {
@@ -452,23 +510,24 @@ const Indent1 = () => {
     }, [userId]);
 
     // Filter materials based on category type (Computer / Non-Computer)
+    // Feature 1 & 3: Filter materials by category using API-fetched data
+    // "computer" subcategory = Computer category; ALL other subcategories = Non-Computer
     const getFilteredMaterialMaster = () => {
         if (!materialMasterState || materialMasterState.length === 0) {
             return [];
         }
 
+        const isComputerSubCategory = (item) => {
+            const sub = (item.subCategory || '').toLowerCase();
+            return sub === 'computer' || sub === 'computer & peripherals';
+        };
+
         if (materialCategoryType === "computer") {
-            return materialMasterState.filter(item => 
-                item.subCategory === "Computer & Peripherals" || 
-                item.category === "Computer & Peripherals"
-            );
+            return materialMasterState.filter(item => isComputerSubCategory(item));
         } else if (materialCategoryType === "non-computer") {
-            return materialMasterState.filter(item => 
-                item.subCategory !== "Computer & Peripherals" && 
-                item.category !== "Computer & Peripherals"
-            );
+            return materialMasterState.filter(item => !isComputerSubCategory(item));
         }
-        
+
         return materialMasterState;
     };
 
@@ -502,6 +561,7 @@ const Indent1 = () => {
                     label: "Material Code",
                     type: "select",
                     required: true,
+                    disabled: !formData.isEditable,
                     options: filteredMaterials.map((item) => {
                         return {
                             label: item.materialCode + " - " + item.description,
@@ -565,7 +625,8 @@ const Indent1 = () => {
                     name: "quantity",
                     label: "Quantity",
                     type: "text",
-                    required: true
+                    required: true,
+                    disabled: !formData.isEditable
                 },
                 {
                     name: "unitPrice",
@@ -585,19 +646,8 @@ const Indent1 = () => {
                         </span>
                     ),
                     type: "text",
-                    required: true
-                },
-                {
-                    name: "totalPrice",
-                    label: "Total Price",
-                    type: "text",
-                    disabled: true,
-                    dependencies: ["quantity", "unitPrice"],
-                    value: (formData, index) => {
-                        const quantity = Number(formData.materialDetails[index]?.quantity) || 0;
-                        const unitPrice = Number(formData.materialDetails[index]?.unitPrice) || 0;
-                        return (quantity * unitPrice).toFixed(2);
-                    }
+                    required: true,
+                    disabled: !formData.isEditable
                 },
                 {
                     name: "currency",
@@ -607,26 +657,66 @@ const Indent1 = () => {
                     disabled: true
                 },
                 {
+                    name: "conversionRate",
+                    label: "Conversion Rate (to INR)",
+                    type: "text",
+                    required: false,
+                    shouldShow: (data, index) => {
+                        const currency = data.materialDetails?.[index]?.currency;
+                        return currency && currency !== "INR";
+                    },
+                    placeholder: "Enter conversion rate to INR",
+                    disabled: !formData.isEditable
+                },
+                {
+                    name: "totalPrice",
+                    label: "Total Price (INR)",
+                    type: "text",
+                    disabled: true,
+                    dependencies: ["quantity", "unitPrice", "conversionRate"],
+                    value: (formData, index) => {
+                        const quantity = Number(formData.materialDetails[index]?.quantity) || 0;
+                        const unitPrice = Number(formData.materialDetails[index]?.unitPrice) || 0;
+                        const currency = formData.materialDetails[index]?.currency;
+                        const conversionRate = Number(formData.materialDetails[index]?.conversionRate) || 1;
+                        if (currency && currency !== "INR" && conversionRate > 0) {
+                            return (quantity * unitPrice * conversionRate).toFixed(2);
+                        }
+                        return (quantity * unitPrice).toFixed(2);
+                    }
+                },
+                {
                     name: "modeOfProcurement",
                     label: "Mode of Procurement",
                     type: "select",
                     span: 2,
                     options: modeOfProcurementOptions,
-                    required: true
+                    required: true,
+                    disabled: !formData.isEditable
                 },
                 {
                     name: "budgetCode",
                     label: "Budget Code",
                     type: "select",
-                    options: budgetCodeDropdown,
+                    options: projectBudgetCodes.length > 0 ? projectBudgetCodes : budgetCodeDropdown,
+                    placeholder: formData.isUnderProject && !formData.projectName
+                        ? "Please select a project first"
+                        : "Select budget code",
+                    disabled: !formData.isEditable || (formData.isUnderProject && !formData.projectName),
                 },
                 {
                     name: "vendorNames",
-                    label: "Vendor Names",
-                    type: selectedModeOfProcurement === "Proprietary/Single Tender" ? "select" : "multiselect",
+                    label: NO_VENDOR_MODES.includes(selectedModeOfProcurement)
+                        ? "Vendor Names (Not applicable for this mode)"
+                        : selectedModeOfProcurement === "LIMITED_TENDER"
+                            ? "Vendor Names (Minimum 4 required)"
+                            : selectedModeOfProcurement === "PROPRIETARY"
+                                ? "Vendor Names (Maximum 1 allowed)"
+                                : "Vendor Names",
+                    type: selectedModeOfProcurement === "PROPRIETARY" ? "select" : "multiselect",
                     options: vendorDropdown,
                     span: 2,
-                    disabled: selectedModeOfProcurement !== "Proprietary/Single Tender" && selectedModeOfProcurement !== "Limited Pre Approved Vendor Tender",
+                    disabled: !formData.isEditable || !VENDOR_REQUIRED_MODES.includes(selectedModeOfProcurement),
                 }
             ]
         };
@@ -644,6 +734,7 @@ const Indent1 = () => {
                     label: "Job Code",
                     type: "select",
                     required: true,
+                    disabled: !formData.isEditable,
                     options: getJobDropdownOptions()
                 },
                 {
@@ -682,7 +773,8 @@ const Indent1 = () => {
                     name: "quantity",
                     label: "Quantity",
                     type: "text",
-                    required: true
+                    required: true,
+                    disabled: !formData.isEditable
                 },
                 {
                     name: "estimatedPrice",
@@ -744,24 +836,118 @@ const Indent1 = () => {
                     {
                         name: "currentStatus",
                         label: "Current Status",
-                        type: "text",
-                        disabled: true
+                        type: "custom",
+                        disabled: true,
+                        render: () => {
+                            const status = formData.currentStatus;
+                            const isApproved = formData.isFullyApproved || status === 'APPROVED';
+                            const isInProgress = status === 'IN_PROGRESS' || status === 'PENDING_APPROVAL';
+
+                            let displayStatus = status || 'DRAFT';
+                            let statusColor = 'gray'; // Default: DRAFT
+
+                            if (isApproved) {
+                                displayStatus = 'APPROVED';
+                                statusColor = '#52c41a'; // Green
+                            } else if (isInProgress) {
+                                displayStatus = 'IN PROGRESS';
+                                statusColor = '#faad14'; // Orange/Yellow
+                            } else if (status === 'DRAFT') {
+                                displayStatus = 'DRAFT';
+                                statusColor = 'gray'; // Gray
+                            }
+
+                            return (
+                                <div style={{
+                                    padding: '8px 12px',
+                                    backgroundColor: statusColor === 'gray' ? '#f5f5f5' : statusColor + '15',
+                                    borderRadius: '4px',
+                                    border: `1px solid ${statusColor}`,
+                                    color: statusColor,
+                                    fontWeight: 600,
+                                    marginTop: '24px'
+                                }}>
+                                    {displayStatus}
+                                </div>
+                            );
+                        }
                     },
                     {
-                        name: "currentStage",
-                        label: "Current Stage",
-                        type: "text",
-                        disabled: true
+                        name: "statusMessage",
+                        label: "Status Message",
+                        type: "custom",
+                        disabled: true,
+                        render: () => {
+                            const statusMsg = formData.statusMessage;
+                            const isApproved = formData.isFullyApproved || formData.currentStatus === 'APPROVED';
+
+                            if (!statusMsg && !isApproved) return null;
+
+                            const displayMessage = statusMsg || (isApproved ? 'Your indent is finally approved.' : '');
+                            const bgColor = isApproved ? '#f6ffed' : '#e6f7ff';
+                            const borderColor = isApproved ? '#b7eb8f' : '#91d5ff';
+                            const textColor = isApproved ? '#52c41a' : '#1890ff';
+
+                            return displayMessage ? (
+                                <div style={{
+                                    padding: '8px 12px',
+                                    backgroundColor: bgColor,
+                                    borderRadius: '4px',
+                                    border: `1px solid ${borderColor}`,
+                                    color: textColor,
+                                    marginTop: '24px'
+                                }}>
+                                    {displayMessage}
+                                </div>
+                            ) : null;
+                        }
+                    },
+                    {
+                        name: "approvalLevel",
+                        label: "Approval Progress",
+                        type: "custom",
+                        disabled: true,
+                        render: () => {
+                            const level = formData.approvalLevel || 0;
+                            const totalLevels = formData.totalApprovalLevels;
+                            const isApproved = formData.isFullyApproved || formData.currentStatus === 'APPROVED';
+                            const pendingWith = formData.pendingWith;
+                            const status = formData.currentStatus;
+
+                            let displayText = `Level ${level}`;
+                            if (totalLevels) {
+                                displayText = `${level} of ${totalLevels} approvals completed`;
+                            }
+                            if (isApproved && totalLevels) {
+                                displayText = `All ${totalLevels} approvals completed`;
+                            }
+
+                            return (
+                                <div style={{
+                                    padding: '8px 12px',
+                                    backgroundColor: isApproved ? '#f6ffed' : '#f5f5f5',
+                                    borderRadius: '4px',
+                                    marginTop: '24px',
+                                    border: isApproved ? '1px solid #b7eb8f' : 'none'
+                                }}>
+                                    <div>{displayText}</div>
+                                    {/* Show pendingWith when IN_PROGRESS */}
+                                    {(status === 'IN_PROGRESS' || status === 'PENDING_APPROVAL') && pendingWith && (
+                                        <div style={{
+                                            marginTop: '4px',
+                                            fontSize: '12px',
+                                            color: '#faad14'
+                                        }}>
+                                            Pending with: {pendingWith}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }
                     },
                     {
                         name: "version",
                         label: "Version",
-                        type: "text",
-                        disabled: true
-                    },
-                    {
-                        name: "approvalLevel",
-                        label: "Approval Level",
                         type: "text",
                         disabled: true
                     }
@@ -809,20 +995,43 @@ const Indent1 = () => {
             ]
         },
         {
-            heading: "Project and Location Details",
+            heading: "Project Classification",
+            colCnt: 4,
             fieldList: [
+                {
+                    name: "isUnderProject",
+                    label: "Is Under Project?",
+                    type: "select",
+                    required: true,
+                    disabled: !formData.isEditable,
+                    options: [
+                        { label: "Yes - Project", value: true },
+                        { label: "No - Non-Project", value: false }
+                    ],
+                    span: 2
+                },
                 {
                     name: "projectName",
                     label: "Project Name",
                     type: "select",
                     options: projectDropdown,
-                },
+                    required: true,
+                    disabled: !formData.isEditable,
+                    span: 2,
+                    shouldShow: (data) => data.isUnderProject === true
+                }
+            ]
+        },
+        {
+            heading: "Location Details",
+            fieldList: [
                 {
                     name: "consignesLocation",
                     label: "Consignee Location",
                     type: "select",
                     options: locationDropdown,
-                    required: true
+                    required: true,
+                    disabled: !formData.isEditable
                 }
             ]
         },
@@ -843,21 +1052,25 @@ const Indent1 = () => {
                     name: "uploadingPriorApprovalsFileName",
                     label: "Upload Prior Approvals if any",
                     type: "multiImage",
+                    disabled: !formData.isEditable
                 },
                 {
                     name: "technicalSpecificationsFileName",
                     label: "Upload Technical Specifications/ Budgetary Quote",
                     type: "multiImage",
+                    disabled: !formData.isEditable
                 },
                 {
                     name: "draftEOIOrRFPFileName",
                     label: "Draft EOI/RFP",
                     type: "multiImage",
+                    disabled: !formData.isEditable
                 },
                 {
                     name: "quarter",
                     label: "Quarter",
                     type: "select",
+                    disabled: !formData.isEditable,
                     options: [
                         { label: "Q1", value: "Q1" },
                         { label: "Q2", value: "Q2" },
@@ -871,8 +1084,9 @@ const Indent1 = () => {
                     type: "text",
                     span: 2,
                     required: true,
+                    disabled: !formData.isEditable
                 },
-                ...(selectedModeOfProcurement === "Proprietary/Single Tender" ? [
+                ...(selectedModeOfProcurement === "PROPRIETARY" || selectedModeOfProcurement === "Proprietary/Single Tender" ? [
                     {
                         name: "reason",
                         label: "Reason",
@@ -889,7 +1103,7 @@ const Indent1 = () => {
                         required: true
                     }
                 ] : []),
-                ...((selectedModeOfProcurement === "Proprietary/Single Tender" || selectedModeOfProcurement === "Limited Pre Approved Vendor Tender") ? [
+                ...(["PROPRIETARY", "LIMITED_TENDER", "Proprietary/Single Tender", "Limited Pre Approved Vendor Tender"].includes(selectedModeOfProcurement) ? [
                     {
                         name: "proprietaryAndLimitedDeclaration",
                         label: proprietaryLimitedDeclarationLabel,
@@ -902,6 +1116,7 @@ const Indent1 = () => {
                     name: "buyBack",
                     type: "checkbox",
                     label: "Buy Back",
+                    disabled: !formData.isEditable
                 },
                 ...(formData.buyBack ? [{
                     name: "uploadBuyBackFileNames",
@@ -934,7 +1149,8 @@ const Indent1 = () => {
                     name: "brandPac",
                     type: "checkbox",
                     label: "Is a Brand PAC?",
-                    required: selectedModeOfProcurement === "Brand PAC"
+                    required: selectedModeOfProcurement === "Brand PAC",
+                    disabled: !formData.isEditable
                 },
                 ...(formData.brandPac ? [{
                     name: "uploadPACOrBrandPACFileName",
@@ -960,6 +1176,7 @@ const Indent1 = () => {
                     name: "isPreBidMeetingRequired",
                     type: "checkbox",
                     label: "Pre-Bid Meeting Required?",
+                    disabled: !formData.isEditable
                 },
                 ...(formData.isPreBidMeetingRequired ? [{
                     name: "preBidMeetingDate",
@@ -978,6 +1195,7 @@ const Indent1 = () => {
                     name: "isItARateContractIndent",
                     type: "checkbox",
                     label: "Is it a Rate Contract Indent",
+                    disabled: !formData.isEditable
                 },
                 // Rate Contract fields
                 ...(formData.isItARateContractIndent ? [
@@ -1046,7 +1264,7 @@ const Indent1 = () => {
 
     const handleChange = (fieldName, value) => {
         console.log("Fieldname, value: ", fieldName, value)
-        
+
         if (fieldName === "indentId") {
             setFormData({
                 ...formData,
@@ -1059,6 +1277,32 @@ const Indent1 = () => {
         // Handle indentorName with auto-fetch
         if (fieldName === "indentorName") {
             handleIndentorNameChange(value);
+            return;
+        }
+
+        // Handle isUnderProject toggle - clear project when switching to Non-Project
+        if (fieldName === "isUnderProject") {
+            const isProject = value === true || value === "true";
+            setFormData({
+                ...formData,
+                isUnderProject: isProject,
+                projectName: isProject ? formData.projectName : "",
+                projectCode: isProject ? formData.projectCode : null
+            });
+            return;
+        }
+
+        // Handle projectName selection - also set projectCode and fetch budget codes
+        if (fieldName === "projectName") {
+            const selectedProject = projectMaster.find(p => p.projectCode === value);
+            setFormData({
+                ...formData,
+                projectName: value,
+                projectCode: selectedProject?.projectCode || value,
+                budgetCode: null // Reset budget code when project changes
+            });
+            // Fetch budget codes for the selected project
+            fetchBudgetCodesByProject(value);
             return;
         }
 
@@ -1102,6 +1346,8 @@ const Indent1 = () => {
                 materialDetails[index].uom = material.uom
                 materialDetails[index].quantity = ""
                 materialDetails[index].unitPrice = material.unitPrice
+                // Feature 2: Reset conversionRate when material changes; set default 1 for non-INR
+                materialDetails[index].conversionRate = material.currency && material.currency !== "INR" ? "" : null
                 materialDetails[index].currency = material.currency
 
                 setFormData({
@@ -1120,11 +1366,11 @@ const Indent1 = () => {
                     materialDetails: updatedMaterialDetails
                 })
             }
-            else if (name === "quantity" || name === "unitPrice") {
+            else if (name === "quantity" || name === "unitPrice" || name === "conversionRate") {
                 const { materialDetails } = formData;
                 materialDetails[index][name] = value
 
-                // ✅ Validate unit price for computer items
+                // Validate unit price for computer items
                 if (name === "unitPrice") {
                     const materialSubCategory = materialDetails[index].materialSubCategory;
                     const isValid = validateComputerItemPrice(
@@ -1134,12 +1380,22 @@ const Indent1 = () => {
                     );
 
                     if (!isValid) {
-                        // Price validation failed, still update the field but user is warned
                         materialDetails[index][name] = value;
                     }
                 }
 
-                materialDetails[index].totalPrice = (Number(materialDetails[index].quantity || 0) * Number(materialDetails[index].unitPrice || 0)).toFixed(2)
+                // Feature 2: Calculate totalPrice with conversionRate for non-INR
+                const qty = Number(materialDetails[index].quantity || 0);
+                const price = Number(materialDetails[index].unitPrice || 0);
+                const currency = materialDetails[index].currency;
+                const rate = Number(materialDetails[index].conversionRate || 0);
+
+                if (currency && currency !== "INR" && rate > 0) {
+                    materialDetails[index].totalPrice = (qty * price * rate).toFixed(2);
+                } else {
+                    materialDetails[index].totalPrice = (qty * price).toFixed(2);
+                }
+
                 setFormData({
                     ...formData,
                     materialDetails: materialDetails
@@ -1148,7 +1404,7 @@ const Indent1 = () => {
             else {
                 const { materialDetails } = formData;
 
-                if (name === "vendorNames" && formData.materialDetails[index]?.modeOfProcurement === "Proprietary/Single Tender") {
+                if (name === "vendorNames" && (formData.materialDetails[index]?.modeOfProcurement === "PROPRIETARY" || formData.materialDetails[index]?.modeOfProcurement === "Proprietary/Single Tender")) {
                     materialDetails[index][name] = []
                     materialDetails[index][name].push(value)
                 } else {
@@ -1290,21 +1546,33 @@ const Indent1 = () => {
             }
 
             if (!formData.isEditable) {
-                message.error({
-                    content: 'Indent is not editable. It can only be edited when sent back by an approver for revision.',
-                    duration: 5
-                });
+                // Check if indent is fully approved
+                const isApproved = formData.isFullyApproved || formData.currentStatus === 'APPROVED';
+                const statusMsg = formData.statusMessage;
+
+                if (isApproved) {
+                    message.success({
+                        content: statusMsg || 'Your indent is finally approved.',
+                        duration: 5
+                    });
+                } else {
+                    message.warning({
+                        content: statusMsg || 'Indent is currently in approval workflow. It can only be edited when sent back for revision.',
+                        duration: 5
+                    });
+                }
                 return;
             }
         }
 
         if (indentType === "material") {
-            if (selectedModeOfProcurement === "Limited Pre Approved Vendor Tender") {
+            // Validate vendor counts based on mode of procurement
+            if (selectedModeOfProcurement === "LIMITED_TENDER" || selectedModeOfProcurement === "Limited Pre Approved Vendor Tender") {
                 let minFourVendorSelected = true;
 
                 formData.materialDetails.forEach((item) => {
-                    if (item.vendorNames.length < 4) {
-                        message.error("At least 4 vendors should be selected for Limited Pre Approved Vendor Tender.");
+                    if (!item.vendorNames || item.vendorNames.length < 4) {
+                        message.error("Limited Tender requires a minimum of 4 vendor names.");
                         minFourVendorSelected = false;
                         return;
                     }
@@ -1313,19 +1581,34 @@ const Indent1 = () => {
                 if (!minFourVendorSelected) return;
             }
 
-            let proprietaryInvalid = false;
+            if (selectedModeOfProcurement === "PROPRIETARY" || selectedModeOfProcurement === "Proprietary/Single Tender") {
+                let proprietaryInvalid = false;
 
-            formData.materialDetails.forEach((item, index) => {
-                if (item.modeOfProcurement === "Proprietary/Single Tender") {
-                    if (!item.vendorNames || item.vendorNames.length !== 1) {
-                        message.error(`Material ${index + 1}: Please select one vendor for Proprietary/Single Tender.`);
+                formData.materialDetails.forEach((item, index) => {
+                    if (!item.vendorNames || item.vendorNames.length > 1) {
+                        message.error(`Material ${index + 1}: Proprietary Purchase allows maximum 1 vendor name.`);
                         proprietaryInvalid = true;
                         return;
                     }
-                }
-            });
+                });
 
-            if (proprietaryInvalid) return;
+                if (proprietaryInvalid) return;
+            }
+
+            if (NO_VENDOR_MODES.includes(selectedModeOfProcurement)) {
+                let hasVendors = false;
+
+                formData.materialDetails.forEach((item) => {
+                    if (item.vendorNames && item.vendorNames.length > 0) {
+                        hasVendors = true;
+                    }
+                });
+
+                if (hasVendors) {
+                    message.error(`Vendor names are not allowed for ${selectedModeOfProcurement.replace(/_/g, ' ')}.`);
+                    return;
+                }
+            }
 
             // ✅ NEW: Validate computer item prices before submission
             let priceLimitExceeded = false;
@@ -1371,12 +1654,20 @@ const Indent1 = () => {
             periodOfContract: formData.isItARateContractIndent ? formData.periodOfContract : null,
             rateContractJobCodes: formData.isItARateContractIndent ? formData.rateContractJobCodes : null,
             justification: formData.brandPac ? formData.justification : null,
-            reason: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.reason : null,
-            proprietaryJustification: selectedModeOfProcurement === "Proprietary/Single Tender" ? formData.proprietaryJustification : null,
+            reason: (selectedModeOfProcurement === "PROPRIETARY" || selectedModeOfProcurement === "Proprietary/Single Tender") ? formData.reason : null,
+            proprietaryJustification: (selectedModeOfProcurement === "PROPRIETARY" || selectedModeOfProcurement === "Proprietary/Single Tender") ? formData.proprietaryJustification : null,
             createdBy: userId,
             employeeDepartment: formData.indentorDepartment, // Use the auto-fetched department
             materialDetails: indentType === "material" ? formData.materialDetails : null,
             jobDetails: indentType === "job" ? formData.jobDetails : null,
+            // Dynamic Workflow Fields - sent in format backend branch matching expects
+            isUnderProject: formData.isUnderProject === true || formData.isUnderProject === "true" ? true : false,
+            projectBased: formData.isUnderProject === true || formData.isUnderProject === "true" ? true : false,
+            projectCode: (formData.isUnderProject === true || formData.isUnderProject === "true") ? formData.projectCode : null,
+            modeOfProcurement: selectedModeOfProcurement || formData.modeOfProcurement,
+            // Send fields in format matching branch conditionConfig keys
+            materialCategory: materialCategoryType === "computer" ? "COMPUTER" : "NON_COMPUTER",
+            location: formData.consignesLocation,
         };
 
         // Remove old field that's no longer used
@@ -1419,6 +1710,11 @@ const Indent1 = () => {
                     message.error({
                         content: "Cannot edit: Indent is in approval workflow",
                         duration: 5
+                    });
+                } else if (errorMessage?.includes("reporting officer") || errorMessage?.includes("Reporting Officer")) {
+                    message.error({
+                        content: errorMessage,
+                        duration: 8
                     });
                 } else {
                     message.error(errorMessage || "Validation error occurred");
@@ -1467,24 +1763,63 @@ const Indent1 = () => {
     };
 
     // Handle Material Category Type Change
+    // Feature 1: Fetch materials by category from API (includes only SPO-approved materials)
+    const fetchMaterialsByCategory = async (categoryType) => {
+        try {
+            const response = await axios.get('/api/material-master/materialSearch', {
+                params: { keyword: '', materialCategoryType: categoryType || undefined }
+            });
+            const data = response.data?.responseData || response.data || [];
+            if (Array.isArray(data) && data.length > 0) {
+                setMaterialMasterState(data);
+            } else {
+                // Fallback to Redux master filtered locally
+                setMaterialMasterState(materialMaster);
+            }
+        } catch (error) {
+            console.error('Error fetching materials by category:', error);
+            // Fallback to Redux master
+            setMaterialMasterState(materialMaster);
+        }
+    };
+
     const handleMaterialCategoryTypeChange = (value) => {
         setMaterialCategoryType(value);
-        
+
         setFormData({
             ...formData,
             materialDetails: [{}]
         });
-        
-        setMaterialMasterState(materialMaster);
+
+        // Fetch fresh materials from API filtered by category
+        fetchMaterialsByCategory(value);
     };
+
+    // Fetch materials on initial load based on default category (computer)
+    useEffect(() => {
+        if (indentType === "material") {
+            fetchMaterialsByCategory(materialCategoryType);
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <Card className='a4-container' ref={printRef}>
             <Heading title="Indent Creation" />
 
-            {/* Bug Fix: Show lock status and version information */}
+            {/* Bug Fix: Show lock status, approval status, and version information */}
             {formData?.indentId && (
                 <Space direction="vertical" style={{ width: '100%', marginTop: '16px', marginBottom: '16px' }}>
+                    {/* SUCCESS Banner: Show when indent is fully approved */}
+                    {formData.isFullyApproved && (
+                        <Alert
+                            message="Indent Approved"
+                            description={formData.statusMessage || "Your indent is finally approved."}
+                            type="success"
+                            showIcon
+                            closable={false}
+                        />
+                    )}
+                    {/* WARNING Banner: Show when locked for tender */}
                     {formData.isLockedForTender && (
                         <Alert
                             message="Indent Locked"
@@ -1494,10 +1829,11 @@ const Indent1 = () => {
                             closable={false}
                         />
                     )}
-                    {!formData.isEditable && !formData.isLockedForTender && (
+                    {/* INFO Banner: Show when not editable AND not fully approved (in approval workflow) */}
+                    {!formData.isEditable && !formData.isLockedForTender && !formData.isFullyApproved && (
                         <Alert
                             message="Indent Not Editable"
-                            description="This indent is currently in approval workflow. It can only be edited when sent back for revision."
+                            description={formData.statusMessage || "This indent is currently in approval workflow. It can only be edited when sent back for revision."}
                             type="info"
                             showIcon
                             closable={false}

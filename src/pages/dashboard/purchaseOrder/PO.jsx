@@ -223,21 +223,65 @@ vendorNameOptions = completedVendorsData.map((vendor) => ({
                     value: v.id,
                   })),
                 };*/
-               if (field.name === "vendorId") {
+              //  if (field.name === "vendorId") {
+              //   return {
+              //     ...field,
+              //     options: completedVendorIds.length
+              //     ? completedVendorIds
+              //     : vendors.map((v) => ({ label: v.id, value: v.id })),
+              //   };
+              // }
+
+              // updated by abhinav
+
+              if (field.name === "vendorId") {
+
+                const vendorOptions = completedVendorIds.length
+                  ? completedVendorIds
+                  : vendors.map((v) => ({
+                      label: v.id,
+                      value: v.id,
+                    }));
+
                 return {
                   ...field,
-                  options: completedVendorIds.length
-                  ? completedVendorIds
-                  : vendors.map((v) => ({ label: v.id, value: v.id })), 
+                  options: [
+                    ...vendorOptions,
+                    { label: "OTHERS (Manual Vendor)", value: "OTHERS" }
+                  ],
                 };
               }
 
+              // if (field.name === "vendorName") {
+              //   return {
+              //     ...field,
+              //     options: completedVendorNames.length
+              //     ? completedVendorNames
+              //     : vendors.map((v) => ({ label: v.name, value: v.name })), // fallback
+              //   };
+              // }
+
+              // updated by abhinav
+
               if (field.name === "vendorName") {
+
+                const isManualVendor = formData.vendorId === "OTHERS";
+
                 return {
                   ...field,
-                  options: completedVendorNames.length
-                  ? completedVendorNames
-                  : vendors.map((v) => ({ label: v.name, value: v.name })), // fallback
+                  type: "text",   // always text
+                  options: isManualVendor
+                    ? []
+                    : (completedVendorNames.length
+                        ? completedVendorNames
+                        : vendors.map((v) => ({
+                            label: v.value,
+                            value: v.value
+                          }))
+                      ),
+                  props: {
+                    readOnly: !isManualVendor
+                  }
                 };
               }
 
@@ -309,9 +353,17 @@ vendorNameOptions = completedVendorsData.map((vendor) => ({
     return section;
   });
 
-  // Handle form changes
+  // added by abhinav
   const handleChange = (name, value) => {
     if (name === "vendorName") {
+
+      if (formData.vendorId === "OTHERS") {
+        setFormData(prev => ({
+          ...prev,
+          vendorName: value
+        }));
+        return;
+      }
       const selectedVendor = vendors.find((v) => v.value === value);
       setFormData((prev) => ({
         ...prev,
@@ -324,19 +376,49 @@ vendorNameOptions = completedVendorsData.map((vendor) => ({
       }));
       return;
     }
+    // if (name === "vendorId") {
+    //     const selectedVendor = vendors.find((v) => v.id === value);
+    //     setFormData((prev) => ({
+    //       ...prev,
+    //       vendorId: value,
+    //       vendorName: selectedVendor?.value || "",
+    //       vendorAddress: selectedVendor?.address || "",
+    //       vendorAccountNumber: selectedVendor?.accountNumber || "",
+    //     vendorsIfscCode: selectedVendor?.ifscCode || "",
+    //     vendorAccountName: selectedVendor?.accountName || "",
+    //     }));
+    //     return;
+    //   }
+
+    // updated by abhinav
+
     if (name === "vendorId") {
-        const selectedVendor = vendors.find((v) => v.id === value);
+
+      if (value === "OTHERS") {
         setFormData((prev) => ({
           ...prev,
-          vendorId: value,
-          vendorName: selectedVendor?.value || "",
-          vendorAddress: selectedVendor?.address || "",
-          vendorAccountNumber: selectedVendor?.accountNumber || "",
-        vendorsIfscCode: selectedVendor?.ifscCode || "",
-        vendorAccountName: selectedVendor?.accountName || "",
+          vendorId: "OTHERS",
+          vendorName: "",
+          vendorAddress: "",
+          vendorAccountNumber: "",
+          vendorsIfscCode: "",
+          vendorAccountName: "",
         }));
         return;
       }
+
+      const selectedVendor = vendors.find((v) => v.id === value);
+
+      setFormData((prev) => ({
+        ...prev,
+        vendorId: value,
+        vendorName: selectedVendor?.value || "",
+        vendorAddress: selectedVendor?.address || "",
+        vendorAccountNumber: selectedVendor?.accountNumber || "",
+        vendorsIfscCode: selectedVendor?.ifscCode || "",
+        vendorAccountName: selectedVendor?.accountName || "",
+      }));
+    }
     if (Array.isArray(name)) {
       const [section, index, field] = name;
       if (section === "materialDtlList") {

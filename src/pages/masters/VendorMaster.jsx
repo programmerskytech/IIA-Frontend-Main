@@ -384,22 +384,7 @@ const VendorMasterForm = () => {
             ]}
           >
             <Select disabled={!canEdit} placeholder="Select Primary Business" loading={loadingPrimaryBusiness}>
-              {(primaryBusinessLOV.length > 0 ? primaryBusinessLOV : [
-                { lovValue: "Chemicals", lovDisplayValue: "Chemicals" },
-                { lovValue: "Computers & Peripherals", lovDisplayValue: "Computers & Peripherals" },
-                { lovValue: "Electricals", lovDisplayValue: "Electricals" },
-                { lovValue: "Electronics", lovDisplayValue: "Electronics" },
-                { lovValue: "Optics", lovDisplayValue: "Optics" },
-                { lovValue: "Fabrication", lovDisplayValue: "Fabrication" },
-                { lovValue: "Furniture", lovDisplayValue: "Furniture" },
-                { lovValue: "Hardware", lovDisplayValue: "Hardware" },
-                { lovValue: "Instrument/ Equipment & Machinery", lovDisplayValue: "Instrument/ Equipment & Machinery" },
-                { lovValue: "Software", lovDisplayValue: "Software" },
-                { lovValue: "Vehicles", lovDisplayValue: "Vehicles" },
-                { lovValue: "Stationary", lovDisplayValue: "Stationary" },
-                { lovValue: "Miscellaneous", lovDisplayValue: "Miscellaneous" },
-                { lovValue: "Services", lovDisplayValue: "Services" }
-              ]).map((item) => (
+              {primaryBusinessLOV.map((item) => (
                 <Option key={item.lovId || item.lovValue} value={item.lovValue}>
                   {item.lovDisplayValue}
                 </Option>

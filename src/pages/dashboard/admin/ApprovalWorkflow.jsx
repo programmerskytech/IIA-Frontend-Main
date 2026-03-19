@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Select, Input, Button, Table, Space, message, Modal, Form, Tag, Popconfirm, Switch, Tooltip, Alert, Collapse } from 'antd';
+import { Card, Select, Input, InputNumber, Button, Table, Space, message, Modal, Form, Tag, Popconfirm, Switch, Tooltip, Alert, Collapse } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, SearchOutlined, SettingOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -36,6 +36,7 @@ const ApprovalWorkflow = () => {
     { value: 'CATEGORY', label: 'Category-Based (Computer/Non-Computer)' },
     { value: 'LOCATION', label: 'Location-Based (Bangalore/Non-Bangalore)' },
     { value: 'PROJECT', label: 'Project-Based (Under Project/Not)' },
+    { value: 'MODE_OF_PROCUREMENT', label: 'Mode of Procurement Based' },
     { value: 'COMPOSITE', label: 'Composite (Multiple conditions)' },
     { value: 'AMOUNT_WITH_ROLE', label: 'Amount with Role' },
     { value: 'AMOUNT_WITH_PROJECT', label: 'Amount with Project' },
@@ -137,6 +138,21 @@ const ApprovalWorkflow = () => {
         { label: 'Purchase Committee', config: { committee: 'PURCHASE_COMMITTEE' } },
         { label: 'Computer Committee', config: { committee: 'COMPUTER_COMMITTEE' } },
         { label: 'Works Committee', config: { committee: 'WORKS_COMMITTEE' } }
+      ]
+    },
+    MODE_OF_PROCUREMENT: {
+      description: 'Route based on the selected mode of procurement. Use this for different approval flows based on how the procurement is done.',
+      examples: [
+        { label: 'GeM (Government e-Marketplace)', config: { modeOfProcurement: 'GEM' } },
+        { label: 'Open Tender', config: { modeOfProcurement: 'OPEN_TENDER' } },
+        { label: 'Limited Tender', config: { modeOfProcurement: 'LIMITED_TENDER' } },
+        { label: 'Single Tender', config: { modeOfProcurement: 'SINGLE_TENDER' } },
+        { label: 'Proprietary Purchase', config: { modeOfProcurement: 'PROPRIETARY' } },
+        { label: 'Rate Contract', config: { modeOfProcurement: 'RATE_CONTRACT' } },
+        { label: 'Direct Purchase', config: { modeOfProcurement: 'DIRECT_PURCHASE' } },
+        { label: 'Emergency Purchase', config: { modeOfProcurement: 'EMERGENCY_PURCHASE' } },
+        { label: 'GeM + Computer Category', config: { modeOfProcurement: 'GEM', materialCategory: 'COMPUTER' } },
+        { label: 'Open Tender + Project', config: { modeOfProcurement: 'OPEN_TENDER', projectBased: true } }
       ]
     }
   };
@@ -248,6 +264,30 @@ const ApprovalWorkflow = () => {
         conditionConfig = null;
       }
 
+      // Feature 2: Frontend validation - Check for duplicate condition config
+      const normalizeConfig = (config) => {
+        if (!config) return null;
+        try {
+          const parsed = typeof config === 'string' ? JSON.parse(config) : config;
+          return JSON.stringify(parsed, Object.keys(parsed).sort());
+        } catch {
+          return config;
+        }
+      };
+
+      const newConfigNormalized = normalizeConfig(conditionConfig);
+      const duplicateBranch = branches.find(branch => {
+        // Skip the branch being edited
+        if (editingBranch && branch.branchId === editingBranch.branchId) return false;
+        const existingConfigNormalized = normalizeConfig(branch.conditionConfig);
+        return existingConfigNormalized === newConfigNormalized && branch.conditionType === values.conditionType;
+      });
+
+      if (duplicateBranch) {
+        message.error(`This condition already exists in branch "${duplicateBranch.branchName}". Please use different conditions.`);
+        return;
+      }
+
       const payload = {
         branchCode: values.branchCode,
         branchName: values.branchName,
@@ -272,7 +312,13 @@ const ApprovalWorkflow = () => {
       fetchBranches(selectedWorkflow);
     } catch (error) {
       console.error('Branch submit error:', error);
-      message.error(error.response?.data?.message || 'Failed to save branch');
+      const errorMsg = error.response?.data?.message || 'Failed to save branch';
+      // Feature 2: User-friendly duplicate config error
+      if (errorMsg.includes('same condition configuration already exists')) {
+        message.error('This condition already exists in another branch. Please use different conditions or modify the existing branch.');
+      } else {
+        message.error(errorMsg);
+      }
     }
   };
 
@@ -310,7 +356,8 @@ const ApprovalWorkflow = () => {
     fetchApprovers(selectedWorkflow, branchId);
   };
 
-  const handleAddNew = () => {
+  // Feature 3: Auto-increment approval levels using backend API
+  const handleAddNew = async () => {
     if (!selectedWorkflow || !selectedBranch) {
       message.warning('Please select a workflow and branch first');
       return;
@@ -318,12 +365,26 @@ const ApprovalWorkflow = () => {
     setEditingApprover(null);
     form.resetFields();
 
-    const usedSequences = approvers.map(a => a.approvalSequence).filter(s => s);
-    const nextSequence = usedSequences.length > 0 ? Math.max(...usedSequences) + 1 : 1;
+    // Call backend to get next approval level and sequence
+    let nextLevel = 1;
+    let nextSequence = 1;
+    try {
+      const response = await axios.get(`/api/admin/approvers/workflow/${selectedWorkflow}/branch/${selectedBranch}/next-level`);
+      if (response.data) {
+        nextLevel = response.data.nextApprovalLevel || 1;
+        nextSequence = response.data.nextApprovalSequence || 1;
+      }
+    } catch (error) {
+      // Fallback to local calculation if API fails
+      const usedLevels = approvers.map(a => a.approvalLevel).filter(l => l);
+      const usedSequences = approvers.map(a => a.approvalSequence).filter(s => s);
+      nextLevel = usedLevels.length > 0 ? Math.max(...usedLevels) + 1 : 1;
+      nextSequence = usedSequences.length > 0 ? Math.max(...usedSequences) + 1 : 1;
+    }
 
     form.setFieldsValue({
       status: 'Active',
-      approvalLevel: 1,
+      approvalLevel: nextLevel,
       approvalSequence: nextSequence,
       isParallelApproval: false,
       isMandatory: true
@@ -339,7 +400,9 @@ const ApprovalWorkflow = () => {
       approvalSequence: record.approvalSequence,
       isParallelApproval: record.isParallelApproval || false,
       isMandatory: record.isMandatory !== undefined ? record.isMandatory : true,
-      status: record.status
+      autoApproveHours: record.autoApproveHours || null,
+      status: record.status,
+      conditionCheckType: record.conditionCheckType || null
     });
     setModalVisible(true);
   };
@@ -364,6 +427,7 @@ const ApprovalWorkflow = () => {
     }
   };
 
+  // Feature 3: Use with-shift endpoint to auto-shift existing levels when needed
   const handleSubmit = async (values) => {
     try {
       const selectedRole = roles.find(r => r.roleId === values.roleId);
@@ -376,7 +440,9 @@ const ApprovalWorkflow = () => {
         approvalSequence: values.approvalSequence,
         isParallelApproval: values.isParallelApproval || false,
         isMandatory: values.isMandatory !== undefined ? values.isMandatory : true,
+        autoApproveHours: values.autoApproveHours || null,
         status: values.status,
+        conditionCheckType: values.conditionCheckType || null,
         createdBy: 'admin'
       };
 
@@ -384,8 +450,15 @@ const ApprovalWorkflow = () => {
         await axios.put(`/api/admin/approvers/${editingApprover.approverId}`, payload);
         message.success('Approver updated successfully');
       } else {
-        await axios.post('/api/admin/approvers', payload);
-        message.success('Approver created successfully');
+        // Check if the level already exists - if so, use with-shift endpoint
+        const levelExists = approvers.some(a => a.approvalLevel === values.approvalLevel);
+        if (levelExists) {
+          await axios.post('/api/admin/approvers/with-shift', payload);
+          message.success('Approver added. Existing approvers shifted to next levels.');
+        } else {
+          await axios.post('/api/admin/approvers', payload);
+          message.success('Approver created successfully');
+        }
       }
 
       setModalVisible(false);
@@ -414,7 +487,23 @@ const ApprovalWorkflow = () => {
       dataIndex: 'roleName',
       key: 'roleName',
       width: 180,
-      render: (roleName) => <Tag color="blue">{roleName}</Tag>
+      render: (roleName, record) => (
+        <Space size={4} wrap>
+          <Tag color="blue">{roleName}</Tag>
+          {record.conditionCheckType && record.conditionCheckType !== 'NONE' && (
+            <Tag color={
+              record.conditionCheckType === 'DEPARTMENT_BASED' ? 'purple' :
+              record.conditionCheckType === 'LIMIT_CHECK' ? 'volcano' :
+              record.conditionCheckType === 'BUDGET_CHECK' ? 'gold' : 'default'
+            }>
+              {record.conditionCheckType === 'DEPARTMENT_BASED' ? 'Dept Based' :
+               record.conditionCheckType === 'LIMIT_CHECK' ? 'Limit Check' :
+               record.conditionCheckType === 'BUDGET_CHECK' ? 'Budget Check' :
+               record.conditionCheckType}
+            </Tag>
+          )}
+        </Space>
+      )
     },
     {
       title: 'Level',
@@ -446,6 +535,14 @@ const ApprovalWorkflow = () => {
       width: 100,
       render: (isMandatory) =>
         isMandatory ? <Tag color="orange">Yes</Tag> : <Tag>No</Tag>
+    },
+    {
+      title: 'Auto-Approve',
+      dataIndex: 'autoApproveHours',
+      key: 'autoApproveHours',
+      width: 120,
+      render: (hours) =>
+        hours ? <Tag color="volcano">{hours} hrs</Tag> : <span style={{ color: '#999' }}>—</span>
     },
     {
       title: 'Status',
@@ -775,6 +872,41 @@ const ApprovalWorkflow = () => {
               checkedChildren="Required"
               unCheckedChildren="Optional"
             />
+          </Form.Item>
+
+          <Form.Item
+            label="Auto-Approve After (Hours)"
+            name="autoApproveHours"
+            tooltip="If set, the request will be auto-approved after the specified hours of inaction."
+            rules={[
+              {
+                type: 'number',
+                min: 1,
+                message: 'Must be at least 1 hour',
+                transform: (value) => value ? Number(value) : undefined
+              }
+            ]}
+          >
+            <InputNumber
+              min={1}
+              placeholder="e.g. 24"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+          <div style={{ marginTop: '-16px', marginBottom: '16px', color: '#888', fontSize: '12px' }}>
+            If set, the request will be automatically approved and forwarded to the next level if this approver does not act within the specified hours. Leave empty for manual-only approval.
+          </div>
+
+          <Form.Item
+            label="Condition Type"
+            name="conditionCheckType"
+            tooltip="Controls how this approver is selected at runtime. 'Department Based' routes to Dean or Head SEG based on the indentor's department."
+          >
+            <Select placeholder="None (Default)" allowClear>
+              <Option value="DEPARTMENT_BASED">Department Based (Dean / Head SEG)</Option>
+              <Option value="LIMIT_CHECK">Amount Limit Check</Option>
+              <Option value="BUDGET_CHECK">Budget Check</Option>
+            </Select>
           </Form.Item>
 
           <Form.Item

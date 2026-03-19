@@ -6,7 +6,13 @@
       "Bash(curl:*)",
       "Bash(python -m json.tool:*)",
       "Bash(cat:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(cmd /c \"tasklist /FI \"\"PID eq 42988\"\" /FO TABLE & echo --- & tasklist /FI \"\"PID eq 13032\"\" /FO TABLE\")",
+      "Bash(powershell:*)",
+      "Bash(npx react-scripts start)"
     ]
   }
 }

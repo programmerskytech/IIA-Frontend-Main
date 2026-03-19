@@ -464,7 +464,7 @@ const handleChartData = (id, barData, pieData) => {
   "project",
   "vendorId",
   "indentIds",
-  "modeOfProcurement"], roles:["PO Creator","Store Purchase Officer", "Purchase personnel", "Administrative Officer", "Account Officer" , "Project Head", "Director","Dean", "Head SEG", , "Store Person","Indent Creator"] },
+  "modeOfProcurement"], roles:["PO Creator","Store Purchase Officer", "Purchase personnel", "Administrative Officer", "Account Officer", "Project Head", "Director", "Dean", "Head SEG", "Store Person", "Indent Creator", "Reporting Officer", "Engineer In-Charge", "Professor In-Charge", "Computer Committee Chairman", "Purchase Head"] },
     { id: 7, title: "PO Status", icon: <SolutionOutlined />, component: PoStatus, attributes: [  "poId",
     "tenderId",
     "indentIds",
@@ -475,7 +475,7 @@ const handleChartData = (id, barData, pieData) => {
     "pendingFrom",
     "status",
     "asOnDate",
-] ,roles:["PO Creator","Store Purchase Officer", "Purchase personnel", "Administrative Officer", "Account Officer" , "Project Head", "Director","Dean", "Head SEG", "Store Person", "Indent Creator"] },
+], roles:["PO Creator", "Store Purchase Officer", "Purchase personnel", "Administrative Officer", "Account Officer", "Project Head", "Director", "Dean", "Head SEG", "Store Person", "Indent Creator", "Reporting Officer", "Engineer In-Charge", "Professor In-Charge", "Computer Committee Chairman", "Purchase Head"] },
 {
   id: 4,
   title: "Vendor Contract",
@@ -506,7 +506,7 @@ const handleChartData = (id, barData, pieData) => {
   "project",
   "vendorId",
   "indentIds",
-  "modeOfProcurement",] , roles:["SO Creator","Store Purchase Officer", "Purchase personnel", "Administrative Officer", "Account Officer" , "Project Head", "Director","Dean", "Head SEG","Store Person","Indent Creator"]
+  "modeOfProcurement"], roles:["SO Creator", "Store Purchase Officer", "Purchase personnel", "Administrative Officer", "Account Officer", "Project Head", "Director", "Dean", "Head SEG", "Store Person", "Indent Creator", "Reporting Officer", "Engineer In-Charge", "Professor In-Charge", "Computer Committee Chairman", "Purchase Head"]
 },
     {
   id: 9,
@@ -524,7 +524,7 @@ const handleChartData = (id, barData, pieData) => {
     "pendingFrom",
     "status",
     "asOnDate"
-  ], roles:["SO Creator","Indent Creator","Store Purchase Officer", "Purchase personnel", "Administrative Officer", "Account Officer" , "Project Head", "Director","Dean", "Head SEG","Store Person"]
+  ], roles:["SO Creator", "Indent Creator", "Store Purchase Officer", "Purchase personnel", "Administrative Officer", "Account Officer", "Project Head", "Director", "Dean", "Head SEG", "Store Person", "Reporting Officer", "Engineer In-Charge", "Professor In-Charge", "Computer Committee Chairman", "Purchase Head"]
 },{
   id: 10,
   title: "Indent List",
@@ -543,7 +543,7 @@ const handleChartData = (id, barData, pieData) => {
     "status",
     "asOnDate",
     "createdBy",
-  ], roles:["Indent Creator", "Reporting Officer", "Administrative Officer", "Field Station In Charge", "Computer Committee Chairman", "Dean", "Head SEG","Director", "Store Purchase Officer", "Purchase personnel","Store Person"]
+  ], roles:["Indent Creator", "Reporting Officer", "Administrative Officer", "Engineer In-Charge", "Professor In-Charge", "Computer Committee Chairman", "Dean", "Head SEG", "Director", "Project Head", "Purchase Head", "Store Purchase Officer", "Purchase personnel", "Store Person"]
 },{
   id: 11,
   title: "Quarterly Vigilance",
@@ -621,7 +621,7 @@ const handleChartData = (id, barData, pieData) => {
     "remarks",
     "modificationDate",
     "createdDate"
-  ],roles:["Indent Creator", "Reporting Officer", "Administrative Officer", "Field Station In Charge", "Computer Committee Chairman", "Dean", "Head SEG","Director", "Store Purchase Officer", "Purchase personnel","Store Person"]
+  ],roles:["Indent Creator", "Reporting Officer", "Administrative Officer", "Engineer In-Charge", "Professor In-Charge", "Computer Committee Chairman", "Dean", "Head SEG", "Director", "Project Head", "Purchase Head", "Store Purchase Officer", "Purchase personnel", "Store Person"]
 },{
   id: 17,
   title: "Asset",

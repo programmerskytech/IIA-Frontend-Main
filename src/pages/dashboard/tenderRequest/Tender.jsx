@@ -103,7 +103,10 @@ const Tender = () => {
     setLoading(true);
     try {
       // Fetch approved indents first
-      const approvedResponse = await axios.get("/approved-indents");
+      // updated by abhinav
+      const approvedResponse = await axios.get(
+        `/approved-indents?userId=${userId}`
+      );
       ;
 
       // Fetch locations

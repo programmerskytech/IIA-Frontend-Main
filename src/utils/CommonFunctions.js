@@ -1,4 +1,4 @@
-import { Checkbox, Form, message, Select } from "antd";
+import { Checkbox, Form, message, Select, Radio } from "antd";
 import { DeleteOutlined,DownloadOutlined } from '@ant-design/icons';
 import FormItemInput from "antd/es/form/FormItemInput";
 import axios from "axios";
@@ -412,12 +412,35 @@ export const apiCall = async (method, url, token, payload = null) => {
             //   },
             // ]}
         >
-            <Checkbox 
+            <Checkbox
             disabled={field?.disabled}
             onChange={(e) => handleChange(field?.name, e.target.checked)}
             checked={formData[field.name]}
             />
         </Form.Item>
+        );
+
+      case "radio":
+        return (
+          <Form.Item
+            name={field?.name}
+            label={field?.label}
+            rules={field?.required ? [{ required: true, message: `${field?.label} is required` }] : []}
+          >
+            <Radio.Group
+              disabled={field?.disabled}
+              onChange={(e) => handleChange(field?.name, e.target.value)}
+              value={formData[field.name]}
+              optionType={field?.buttonStyle ? "button" : "default"}
+              buttonStyle={field?.buttonStyle || "outline"}
+            >
+              {field?.options?.map((option, idx) => (
+                <Radio key={idx} value={option.value}>
+                  {option.label}
+                </Radio>
+              ))}
+            </Radio.Group>
+          </Form.Item>
         );
 
       case "uploadFiles":
@@ -620,7 +643,10 @@ export const renderFormFields = (detail, handleChange, formData, parentName = ""
                       className="absolute top-0 right-0 text-red-500 hover:text-red-700 cursor-pointer text-lg bg-gray-100 p-2"
                     />
                     <div className={`grid md:gap-x-4 md:gap-y-2 ${section.colCnt ? colClasses[section.colCnt] : "md:grid-cols-3"}`}>
-                      {section.children.map((child, subIndex) => (
+                      {section.children.map((child, subIndex) => {
+                        // Support shouldShow for child fields (e.g. conversionRate shown only for non-INR)
+                        if (child.shouldShow && !child.shouldShow(formData, childIndex)) return null;
+                        return (
                         <div key={subIndex} className={`col-span-${child?.span || 1}`}>
                           {conditonalRender(
                             {
@@ -631,7 +657,8 @@ export const renderFormFields = (detail, handleChange, formData, parentName = ""
                             formData
                           )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )) 

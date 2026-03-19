@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Input, Select, Button, Table, Space, Card, message, Tag } from 'antd';
-import { SearchOutlined, ClearOutlined, UserOutlined } from '@ant-design/icons';
+import { Input, Select, Button, Table, Space, Card, message, Tag, Tooltip } from 'antd';
+import { SearchOutlined, ClearOutlined, UserOutlined, EditOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 const { Option } = Select;
@@ -9,7 +9,7 @@ const { Option } = Select;
  * TC_15: Advanced Employee Search Component
  * Search employees by multiple criteria: name, ID, department, location
  */
-const AdvancedEmployeeSearch = ({ onSelectEmployee }) => {
+const AdvancedEmployeeSearch = ({ onSelectEmployee, onEditEmployee }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [department, setDepartment] = useState('');
   const [location, setLocation] = useState('');
@@ -142,25 +142,36 @@ const AdvancedEmployeeSearch = ({ onSelectEmployee }) => {
         </Tag>
       )
     },
-    ...(onSelectEmployee
-      ? [
-          {
-            title: 'Action',
-            key: 'action',
-            width: 100,
-            fixed: 'right',
-            render: (_, record) => (
+    // Always show Actions column with Edit button
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 120,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space>
+          {onEditEmployee && (
+            <Tooltip title="Edit Employee">
               <Button
                 type="primary"
+                icon={<EditOutlined />}
                 size="small"
-                onClick={() => onSelectEmployee(record)}
-              >
-                Select
-              </Button>
-            )
-          }
-        ]
-      : [])
+                onClick={() => onEditEmployee(record.employeeId)}
+              />
+            </Tooltip>
+          )}
+          {onSelectEmployee && (
+            <Button
+              type="default"
+              size="small"
+              onClick={() => onSelectEmployee(record)}
+            >
+              Select
+            </Button>
+          )}
+        </Space>
+      )
+    }
   ];
 
   return (

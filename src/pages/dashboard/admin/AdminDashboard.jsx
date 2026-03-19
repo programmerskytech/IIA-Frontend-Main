@@ -6,7 +6,11 @@ import {
   DollarOutlined,
   TeamOutlined,
   FileTextOutlined,
-  SettingOutlined
+  SettingOutlined,
+  SafetyCertificateOutlined,
+  ApartmentOutlined,
+  EnvironmentOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -121,18 +125,46 @@ const AdminDashboard = () => {
       color: '#f6ffed'
     },
     {
-      title: 'Projects',
-      icon: <ProjectOutlined style={{ fontSize: 32, color: '#fa8c16' }} />,
-      description: 'Manage projects and budgets',
-      path: '/admin/projects',
+      title: 'Approval Limits',
+      icon: <SafetyCertificateOutlined style={{ fontSize: 32, color: '#f5222d' }} />,
+      description: 'Configure approval limits by role, category, and department',
+      path: '/admin/approval-limits',
+      color: '#fff1f0'
+    },
+    {
+      title: 'Department Approvers',
+      icon: <ApartmentOutlined style={{ fontSize: 32, color: '#722ed1' }} />,
+      description: 'Map departments to Dean/Head SEG for approvals',
+      path: '/admin/department-approvers',
+      color: '#f9f0ff'
+    },
+    {
+      title: 'Field Station In-Charges',
+      icon: <EnvironmentOutlined style={{ fontSize: 32, color: '#fa8c16' }} />,
+      description: 'Configure Engineer/Professor In-Charge for field stations',
+      path: '/admin/field-station-approvers',
       color: '#fff7e6'
     },
     {
+      title: 'Full Workflow Config',
+      icon: <EyeOutlined style={{ fontSize: 32, color: '#1890ff' }} />,
+      description: 'View complete workflow configuration',
+      path: '/admin/workflow-config',
+      color: '#e6f7ff'
+    },
+    {
+      title: 'Projects',
+      icon: <ProjectOutlined style={{ fontSize: 32, color: '#13c2c2' }} />,
+      description: 'Manage projects and budgets',
+      path: '/admin/projects',
+      color: '#e6fffb'
+    },
+    {
       title: 'Budget',
-      icon: <DollarOutlined style={{ fontSize: 32, color: '#722ed1' }} />,
+      icon: <DollarOutlined style={{ fontSize: 32, color: '#faad14' }} />,
       description: 'Track and allocate budgets',
       path: '/admin/budget',
-      color: '#f9f0ff'
+      color: '#fffbe6'
     },
     {
       title: 'Employee Registration',
@@ -143,10 +175,10 @@ const AdminDashboard = () => {
     },
     {
       title: 'User Creation',
-      icon: <TeamOutlined style={{ fontSize: 32, color: '#13c2c2' }} />,
+      icon: <TeamOutlined style={{ fontSize: 32, color: '#2f54eb' }} />,
       description: 'Create user accounts and assign roles',
       path: '/admin/user',
-      color: '#e6fffb'
+      color: '#f0f5ff'
     }
   ];
 

@@ -38,7 +38,6 @@ const JobForm = () => {
   const [jobDetailsMap, setJobDetailsMap] = useState({});
   const [jobCategories, setJobCategories] = useState([]);
   const [jobSubcategories, setJobSubcategories] = useState([]);
-  const [uomOptions, setUomOptions] = useState([]);
   const [fileList, setFileList] = useState([]);
   const auth = useSelector((state) => state.auth);
   const actionPerformer = auth.userId;
@@ -86,17 +85,6 @@ const JobForm = () => {
       setJobDetailsMap(jobMap);
       setJobList(Object.keys(jobMap));
 
-      // Fetch UOM Data
-      const uomResponse = await axios.get(`api/uom-master`);
-      const uomData = uomResponse.data;
-
-      if (!uomData.responseData) throw new Error("Invalid UOM data");
-
-      const processedUom = uomData.responseData.map((uom) => ({
-        value: uom.uomCode,
-        label: uom.uomName,
-      }));
-      setUomOptions(processedUom);
     } catch (error) {
       console.error("Material fetch error:", error);
       message.error("Failed to load data from server");
@@ -190,13 +178,7 @@ const JobForm = () => {
             ]}
           >
             <Select placeholder="Select Job Category" loading={loadingJobCategory}>
-              {(jobCategoryLOV.length > 0 ? jobCategoryLOV : [
-                { lovValue: "AMC", lovDisplayValue: "AMC (Annual Maintenance Contract)" },
-                { lovValue: "Rate Contract", lovDisplayValue: "Rate Contract" },
-                { lovValue: "Repair And Service", lovDisplayValue: "Repair & Service" },
-                { lovValue: "Internet Service", lovDisplayValue: "Internet Service" },
-                { lovValue: "Other Service", lovDisplayValue: "Other Service" }
-              ]).map((item) => (
+              {jobCategoryLOV.map((item) => (
                 <Option key={item.lovId || item.lovValue} value={item.lovValue}>
                   {item.lovDisplayValue}
                 </Option>
@@ -210,19 +192,7 @@ const JobForm = () => {
             rules={[{ required: true, message: "Please select subcategory!" }]}
           >
             <Select placeholder="Select Job Subcategory" loading={loadingJobSubcategory}>
-              {(jobSubcategoryLOV.length > 0 ? jobSubcategoryLOV : [
-                { lovValue: "Chemicals", lovDisplayValue: "Chemicals" },
-                { lovValue: "Computer & Peripherals", lovDisplayValue: "Computer & Peripherals" },
-                { lovValue: "Electrical", lovDisplayValue: "Electrical" },
-                { lovValue: "Electronic Items", lovDisplayValue: "Electronic Items" },
-                { lovValue: "Equipment", lovDisplayValue: "Equipment" },
-                { lovValue: "Furniture", lovDisplayValue: "Furniture" },
-                { lovValue: "HARDWARE", lovDisplayValue: "HARDWARE" },
-                { lovValue: "Miscellaneous", lovDisplayValue: "Miscellaneous" },
-                { lovValue: "Software", lovDisplayValue: "Software" },
-                { lovValue: "Stationary", lovDisplayValue: "Stationary" },
-                { lovValue: "Vehicles", lovDisplayValue: "Vehicles" }
-              ]).map((item) => (
+              {jobSubcategoryLOV.map((item) => (
                 <Option key={item.lovId || item.lovValue} value={item.lovValue}>
                   {item.lovDisplayValue}
                 </Option>
@@ -246,9 +216,9 @@ const JobForm = () => {
             rules={[{ required: true, message: "Please select UOM!" }]}
           >
             <Select placeholder="Select Unit of Measure" loading={loadingUom}>
-              {(uomLOV.length > 0 ? uomLOV.map(lov => ({value: lov.lovValue, label: lov.lovDisplayValue})) : uomOptions).map((uom) => (
-                <Option key={uom.value} value={uom.value}>
-                  {uom.label}
+              {uomLOV.map(lov => (
+                <Option key={lov.lovId || lov.lovValue} value={lov.lovValue}>
+                  {lov.lovDisplayValue}
                 </Option>
               ))}
             </Select>
@@ -274,12 +244,7 @@ const JobForm = () => {
             rules={[{ required: true, message: "Please select currency!" }]}
           >
             <Select placeholder="Select Currency" loading={loadingCurrency}>
-              {(currencyLOV.length > 0 ? currencyLOV : [
-                { lovValue: "USD", lovDisplayValue: "USD" },
-                { lovValue: "INR", lovDisplayValue: "INR" },
-                { lovValue: "EUR", lovDisplayValue: "EUR" },
-                { lovValue: "GBP", lovDisplayValue: "GBP" }
-              ]).map((item) => (
+              {currencyLOV.map((item) => (
                 <Option key={item.lovId || item.lovValue} value={item.lovValue}>
                   {item.lovDisplayValue}
                 </Option>

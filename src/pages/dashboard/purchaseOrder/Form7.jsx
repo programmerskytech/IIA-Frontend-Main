@@ -37,6 +37,9 @@ const Form7 = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const auth = useSelector((state) => state.auth);
   const actionPerformer = auth.userId;
+  const [isManualVendor, setIsManualVendor] = useState(false); // added new by abhinav
+
+  // const [isLocked, setIsLocked] = useState(false);
 
   // Fetch vendors
   useEffect(() => {
@@ -65,8 +68,46 @@ const Form7 = () => {
   }, []);
 
   // Handle vendor selection
+  // const handleVendorSelect = (vendorId) => {
+  //   const selectedVendor = vendors.find((v) => v.vendorId === vendorId);
+  //   if (!selectedVendor) return;
+
+  //   form.setFieldsValue({
+  //     vendorName: selectedVendor.vendorName,
+  //     vendorAddress: selectedVendor.address,
+  //     vendorAccountNo: selectedVendor.accountNo,
+  //     vendorsIFSCCode: selectedVendor.ifscCode,
+  //     vendorAccountName: selectedVendor.vendorName,
+  //     vendorId: selectedVendor.vendorId,
+  //     vendorGST: selectedVendor.gstNo,
+  //     vendorPAN: selectedVendor.panNo,
+  //     vendorContact: selectedVendor.mobileNo || selectedVendor.contactNo,
+  //   });
+  // };
+
+  // updated by abhinav - added OTHERS option in vendor dropdown and handle manual entry of vendor details start
   const handleVendorSelect = (vendorId) => {
-    const selectedVendor = vendors.find((v) => v.vendorId === vendorId);
+
+    if (vendorId === "OTHERS") {
+
+      setIsManualVendor(true);
+
+      form.setFieldsValue({
+        vendorId: "OTHERS",
+        vendorName: "",
+        vendorAddress: "",
+        vendorAccountNo: "",
+        vendorsIFSCCode: "",
+        vendorAccountName: ""
+      });
+
+      return;
+    }
+
+    setIsManualVendor(false);
+
+    const selectedVendor = vendors.find(v => v.vendorId === vendorId);
+
     if (!selectedVendor) return;
 
     form.setFieldsValue({
@@ -74,13 +115,11 @@ const Form7 = () => {
       vendorAddress: selectedVendor.address,
       vendorAccountNo: selectedVendor.accountNo,
       vendorsIFSCCode: selectedVendor.ifscCode,
-      vendorAccountName: selectedVendor.vendorName,
-      vendorId: selectedVendor.vendorId,
-      vendorGST: selectedVendor.gstNo,
-      vendorPAN: selectedVendor.panNo,
-      vendorContact: selectedVendor.mobileNo || selectedVendor.contactNo,
+      vendorAccountName: selectedVendor.vendorName
     });
+
   };
+  // updated by abhinav - added OTHERS option in vendor dropdown and handle manual entry of vendor details end
 
   // **1. Fetch All Tender IDs**
   useEffect(() => {
@@ -193,6 +232,10 @@ const Form7 = () => {
 
       const poDetails = data.responseData;
 
+      setSelectedIndentId(poDetails.indentId); // added new by abhinav
+
+
+
       // 1. Extract all material details from indents
       const allMaterials =
         poDetails.tenderDetails?.indentResponseDTO?.flatMap((indent) =>
@@ -300,8 +343,11 @@ const Form7 = () => {
         deliveryPeriod: parseFloat(values.deliveryPeriod) || 0,
         warranty: parseFloat(values.warranty) || 0,
         ifLdClauseApplicable: !!values.ifLDClauseApplicable, // Ensure boolean
-        incoterms: values.incoTerms,
-        paymentterms: values.paymentTerms,
+        // incoterms: values.incoTerms,
+        // paymentterms: values.paymentTerms,
+        // updated by abhinav
+        incoTerms: values.incoTerms,
+        paymentTerms: values.paymentTerms,
         vendorName: values.vendorName,
         vendorId: values.vendorId,
         vendorAddress: values.vendorAddress,
@@ -315,16 +361,33 @@ const Form7 = () => {
         updatedBy: null,
       };
 
-      const response = await fetch(
-        "http://103.181.158.220:8081/astro-service/api/purchase-orders",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json", // Explicit JSON content type
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      // const response = await fetch(
+      //   "http://103.181.158.220:8081/astro-service/api/purchase-orders",
+      //   {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json", // Explicit JSON content type
+      //     },
+      //     body: JSON.stringify(payload),
+      //   }
+      // );
+
+      // updated by abhinav
+      const isUpdate = values.poId && values.poId !== "";
+
+      const url = isUpdate
+        ? `http://103.181.158.220:8081/astro-service/api/purchase-orders/${values.poId}`
+        : "http://103.181.158.220:8081/astro-service/api/purchase-orders";
+
+      const method = isUpdate ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
       const responseData = await response.json();
 
@@ -671,32 +734,38 @@ const Form7 = () => {
           <Form.Item
             label="Vendor Name"
             name="vendorName"
-            rules={[{ required: true, message: "Please select a vendor" }]}
+            rules={[{ required: true, message: "Please enter vendor name" }]}
           >
-            <Select
-              showSearch
-              placeholder="Select vendor"
-              loading={loadingVendors}
-              onSelect={handleVendorSelect}
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                option.children.toLowerCase().includes(input.toLowerCase())
-              }
-            >
-              {vendors.map((vendor) => (
-                <Option key={vendor.vendorId} value={vendor.vendorId}>
-                  {vendor.vendorName}
-                </Option>
-              ))}
-            </Select>
+          <Input placeholder="Enter vendor name" disabled={!isManualVendor} />
           </Form.Item>
-
           <Form.Item
-            label="Vendor Id"
+            label="Vendor"
             name="vendorId"
-            rules={[{ required: true, message: "Please enter vendor ID" }]}
+            rules={[{ required: true, message: "Please select vendor" }]}
           >
-            <Input rows={1} placeholder="Enter vendor ID" disabled />
+          <Select
+            showSearch
+            placeholder="Select vendor"
+            loading={loadingVendors}
+            onChange={handleVendorSelect}
+            optionFilterProp="children"
+          >
+
+          <Option value="OTHERS" label="OTHERS (Manual Vendor)">
+            OTHERS (Manual Vendor)
+          </Option>
+
+          {vendors.map((vendor) => (
+            <Option
+              key={vendor.vendorId}
+              value={vendor.vendorId}
+
+            >
+              {vendor.vendorId} - {vendor.vendorName}
+            </Option>
+          ))}
+
+          </Select>
           </Form.Item>
 
           {/* Vendor Address */}
@@ -705,7 +774,7 @@ const Form7 = () => {
             name="vendorAddress"
             rules={[{ required: true, message: "Please enter vendor address" }]}
           >
-            <TextArea rows={1} placeholder="Enter vendor address" disabled />
+            <TextArea rows={1} placeholder="Enter vendor address" disabled={!isManualVendor} />
           </Form.Item>
 
           {/* Applicable PBG to be submitted */}
@@ -723,7 +792,7 @@ const Form7 = () => {
               },
             ]}
           >
-            <Input placeholder="Enter vendor's account number" disabled />
+            <Input placeholder="Enter vendor's account number" disabled={!isManualVendor} />
           </Form.Item>
 
           {/* Vendor's IFSC Code */}
@@ -734,7 +803,7 @@ const Form7 = () => {
               { required: true, message: "Please enter vendor's IFSC code" },
             ]}
           >
-            <Input placeholder="Enter vendor's IFSC code" disabled />
+            <Input placeholder="Enter vendor's IFSC code" disabled={!isManualVendor} />
           </Form.Item>
 
           {/* Vendor's A/C Name */}
@@ -745,7 +814,7 @@ const Form7 = () => {
               { required: true, message: "Please enter vendor's account name" },
             ]}
           >
-            <Input placeholder="Enter vendor's account name" disabled />
+            <Input placeholder="Enter vendor's account name" disabled={!isManualVendor} />
           </Form.Item>
         </div>
 

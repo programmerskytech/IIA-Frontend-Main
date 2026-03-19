@@ -18,11 +18,26 @@ const QueueHistory = ({ requestId, open, onCancel }) => {
       title: 'Action',
       dataIndex: 'action',
       key: 'action',
-      render: (text) => (
-        <Tag color={text === 'APPROVED' ? 'green' : 'geekblue'}>
-          {text.toLowerCase()}
-        </Tag>
-      ),
+      render: (text) => {
+        if (text === 'Auto-Approved' || text === 'AUTO_APPROVED') {
+          return <Tag color="orange">Auto-Approved</Tag>;
+        }
+        return (
+          <Tag color={text === 'APPROVED' ? 'green' : 'geekblue'}>
+            {text.toLowerCase()}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: 'Routed To',
+      dataIndex: 'assignedToEmployeeName',
+      key: 'assignedTo',
+      render: (name, record) => {
+        if (!name && !record.assignedToUserId) return '--';
+        const role = record.currentRole || '';
+        return name ? `${name}${role ? ` (${role})` : ''}` : '--';
+      },
     },
     {
       title: 'Remarks',

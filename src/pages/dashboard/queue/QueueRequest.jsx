@@ -756,14 +756,15 @@ const fetchEmployees = () => {
         const cancelResponse = await axios.get("/allCancledIndents");
         responseData = cancelResponse.data.responseData;
       } else {
+        const params = new URLSearchParams();
+        params.append("roleName", roleName);
+        if (userId) {
+          params.append("userId", userId);
+        }
         const response = await axios.get(
           isPurchaseHead
-            ? `/completedIndentWorkflowTransition?roleName=${encodeURIComponent(
-                roleName
-              )}`
-            : `/pendingWorkflowTransitionQueue?roleName=${encodeURIComponent(
-                roleName
-              )}`
+            ? `/completedIndentWorkflowTransition?${params.toString()}`
+            : `/pendingWorkflowTransitionQueue?${params.toString()}`
         );
         responseData = response.data.responseData;
       }
@@ -836,6 +837,8 @@ const fetchEmployees = () => {
           }),
           status: item.nextAction,
           workflowTransitionId: item.workflowTransitionId,
+          assignedToUserId: item.assignedToUserId,
+          assignedToEmployeeName: item.assignedToEmployeeName,
         }))
         .sort((a, b) => b.createdDate - a.createdDate);
 
@@ -1205,6 +1208,12 @@ const fetchEmployees = () => {
       key: "consignee",
       render: (_, record) =>
         getCommonField(record.workflowId, record, "consignee") || "-",
+    },
+    {
+      title: "Assigned To",
+      dataIndex: "assignedToEmployeeName",
+      key: "assignedTo",
+      render: (text) => text || "-",
     },
     {
       title: "Status",
